@@ -1,5 +1,6 @@
 """Binary sensor platform for Grimmory."""
 
+from datetime import timedelta
 import logging
 
 from homeassistant.components.binary_sensor import BinarySensorEntity
@@ -8,6 +9,8 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import GrimmoryConfigEntry
 from .api import GrimmoryApiClient
+
+SCAN_INTERVAL = timedelta(minutes=5)
 
 _LOGGER = logging.getLogger(__name__)
 
