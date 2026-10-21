@@ -6,6 +6,7 @@ Currently provides:
 - Book count
 - Grimmory version and update information
 - Kobo Sync status
+- Last read book
 
 ## Installation
 
