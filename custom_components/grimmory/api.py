@@ -169,3 +169,23 @@ class GrimmoryApiClient:
         _LOGGER.debug("Retrieved Grimmory version: %s", version_info)
 
         return version_info
+
+    async def get_kobo_sync_status(self):
+        """Get the Kobo sync status."""
+
+        _LOGGER.debug("Getting Kobo Sync status from API at %s", self.host)
+
+        if self.host is None or self.token is None:
+            raise RuntimeError("Client is not available")
+
+        kobo_settings = await self._request(
+            f"{self.host}/api/v1/kobo-settings",
+            params=None,
+            headers={
+                "Authorization": f"Bearer {self.token}",
+            },
+        )
+
+        _LOGGER.debug("Retrieved Kobo settings: %s", kobo_settings)
+
+        return kobo_settings["syncEnabled"]
