@@ -23,6 +23,7 @@ async def async_setup_entry(
 
     sensors = [
         GrimmoryBookCountSensor(client),
+        GrimmoryLastReadSensor(client),
     ]
     _LOGGER.debug("Setting up Grimmory sensors: %s", sensors)
 
@@ -43,3 +44,32 @@ class GrimmoryBookCountSensor(SensorEntity):
     async def async_update(self) -> None:
         """Fetch number of books."""
         self._attr_native_value = await self._client.get_book_count()
+
+
+class GrimmoryLastReadSensor(SensorEntity):
+    """A sensor for the last read book in Grimmory."""
+
+    _attr_has_entity_name = True
+    _attr_name = "Last read book"
+    _attr_unique_id = "last_read_book"
+
+    def __init__(self, client: GrimmoryApiClient) -> None:
+        """Initialize the sensor."""
+        self._client = client
+
+    async def async_update(self) -> None:
+        """Fetch last read book."""
+        book = await self._client.get_last_read_book()
+
+        if book is None:
+            self._attr_native_value = None
+            self._attr_extra_state_attributes = {}
+            return
+
+        self._attr_native_value = book.get("title")
+        self._attr_extra_state_attributes = {
+            "authors": book.get("authors"),
+            "last_read": book.get("lastReadTime"),
+            "read_progress": book.get("readProgress"),
+            "series": book.get("seriesName"),
+        }

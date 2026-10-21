@@ -189,3 +189,29 @@ class GrimmoryApiClient:
         _LOGGER.debug("Retrieved Kobo settings: %s", kobo_settings)
 
         return kobo_settings["syncEnabled"]
+
+    async def get_last_read_book(self):
+        """Get the last read book."""
+
+        _LOGGER.debug("Getting last read book from API at %s", self.host)
+
+        if self.host is None or self.token is None:
+            raise RuntimeError("Client is not available")
+
+        last_read = await self._request(
+            f"{self.host}/api/v1/app/books",
+            params={
+                "page": 1,
+                "size": 1,
+                "sort": "lastReadTime",
+                "dir": "desc",
+            },
+            headers={
+                "Authorization": f"Bearer {self.token}",
+            },
+        )
+
+        _LOGGER.debug("Retrieved last read book: %s", last_read)
+
+        books = last_read.get("content", [])
+        return books[0] if books else None
