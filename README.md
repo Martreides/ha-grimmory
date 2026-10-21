@@ -5,6 +5,7 @@ A custom Home Assistant integration for [Grimmory](https://grimmory.org).
 Currently provides:
 - Book count
 - Grimmory version and update information
+- Kobo Sync status
 
 ## Installation
 
