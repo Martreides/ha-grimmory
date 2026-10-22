@@ -4,10 +4,12 @@ import logging
 
 from homeassistant.components.update import UpdateEntity
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import GrimmoryConfigEntry
 from .api import GrimmoryApiClient
+from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -37,6 +39,11 @@ class GrimmoryUpdateEntity(UpdateEntity):
     _attr_has_entity_name = True
     _attr_name = "Grimmory"
     _attr_unique_id = "version"
+    _attr_device_info = DeviceInfo(
+        identifiers={(DOMAIN, "grimmory")},
+        name="Grimmory",
+        manufacturer="Grimmory",
+    )
 
     def __init__(self, client: GrimmoryApiClient) -> None:
         """Initialize the update entity."""
