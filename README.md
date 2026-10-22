@@ -1,6 +1,6 @@
 # Grimmory
 
-A custom Home Assistant integration for [Grimmory](https://grimmory.org).
+A custom Home Assistant integration for [Grimmory](https://grimmory.org). The integration uses the Grimmory API.
 
 Currently provides:
 - Book count
@@ -10,6 +10,11 @@ Currently provides:
 
 ## Installation
 
+
+### Using HACS
+Add this repository to HACS (Marketplace) as custom repository and install the integration.
+
+### Manual
 Copy `custom_components/grimmory` to the `custom_components` directory in your Home Assistant configuration.
 
 Restart Home Assistant and add Grimmory through **Settings → Devices & services**.
