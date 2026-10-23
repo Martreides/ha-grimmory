@@ -5,12 +5,11 @@ import logging
 from typing import Any
 
 import aiohttp
-
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_TOKEN, CONF_USERNAME
 from homeassistant.core import HomeAssistant
 
-from .const import CONF_REFRESH_TOKEN
+from .const import CONF_LIBRARY_ID, CONF_REFRESH_TOKEN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -20,15 +19,24 @@ class GrimmoryApiClient:
 
     def __init__(
         self,
-        hass: HomeAssistant,
-        entry: ConfigEntry,
+        hass: HomeAssistant | None = None,
+        entry: ConfigEntry | None = None,
+        host: str | None = None,
+        token: str | None = None,
     ) -> None:
         """Initialize the Grimmory API client."""
         self.hass = hass
         self.entry = entry
-        self.host = entry.data[CONF_HOST]
-        self.token = entry.data[CONF_TOKEN]
-        self.refresh_token = entry.data[CONF_REFRESH_TOKEN]
+
+        if entry is not None:
+            self.host = entry.data[CONF_HOST]
+            self.token = entry.data[CONF_TOKEN]
+            self.refresh_token = entry.data[CONF_REFRESH_TOKEN]
+        else:
+            self.host = host
+            self.token = token
+            self.refresh_token = None
+
         self._refresh_lock = asyncio.Lock()
 
     @staticmethod
@@ -63,6 +71,9 @@ class GrimmoryApiClient:
 
     async def _refresh_token(self, token_used: str | None) -> bool:
         """Refresh the access token."""
+
+        if self.refresh_token is None:
+            raise RuntimeError("Token refresh is unavailable")
 
         _LOGGER.debug("Refreshing access token for Grimmory API at %s", self.host)
         async with self._refresh_lock:
@@ -132,6 +143,9 @@ class GrimmoryApiClient:
 
         _LOGGER.debug("Getting book count from Grimmory API at %s", self.host)
 
+        if self.entry is None:
+            raise RuntimeError("A config entry is required to get the book count")
+
         if self.host is None or self.token is None:
             raise RuntimeError("Client is not available")
 
@@ -147,6 +161,10 @@ class GrimmoryApiClient:
         )
 
         _LOGGER.debug("Retrieved %d books from Grimmory API", len(books))
+
+        library_id = self.entry.data[CONF_LIBRARY_ID]
+        if library_id is not None:
+            books = [book for book in books if book["libraryId"] == library_id]
 
         return len(books)
 
@@ -195,23 +213,52 @@ class GrimmoryApiClient:
 
         _LOGGER.debug("Getting last read book from API at %s", self.host)
 
+        if self.entry is None:
+            raise RuntimeError("A config entry is required to get the last read book")
+
         if self.host is None or self.token is None:
             raise RuntimeError("Client is not available")
 
+        params = {
+            "page": 1,
+            "size": 1,
+            "sort": "lastReadTime",
+            "dir": "desc",
+        }
+
+        library_id = self.entry.data.get(CONF_LIBRARY_ID)
+        if library_id is not None:
+            params["libraryId"] = library_id
+
         last_read = await self._request(
             f"{self.host}/api/v1/app/books",
-            params={
-                "page": 1,
-                "size": 1,
-                "sort": "lastReadTime",
-                "dir": "desc",
-            },
+            params=params,
             headers={
                 "Authorization": f"Bearer {self.token}",
             },
         )
 
-        _LOGGER.debug("Retrieved last read book: %s", last_read)
+        _LOGGER.debug("Retrieved last read book: %s", last_read["content"][0]["title"])
 
         books = last_read.get("content", [])
         return books[0] if books else None
+
+    async def get_libraries(self):
+        """Get the available libraries in Grimmory."""
+
+        _LOGGER.debug("Getting libraries from Grimmory API at %s", self.host)
+
+        if self.host is None or self.token is None:
+            raise RuntimeError("Client is not available")
+
+        libraries = await self._request(
+            f"{self.host}/api/v1/libraries",
+            params={},
+            headers={
+                "Authorization": f"Bearer {self.token}",
+            },
+        )
+
+        _LOGGER.debug("Retrieved %s libraries from Grimmory API", len(libraries))
+
+        return libraries

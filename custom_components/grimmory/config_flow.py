@@ -5,12 +5,16 @@ from typing import Any, override
 
 import aiohttp
 import probatio
-
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_TOKEN, CONF_USERNAME
+from homeassistant.helpers.selector import (
+    SelectSelector,
+    SelectSelectorConfig,
+    SelectSelectorMode,
+)
 
 from .api import GrimmoryApiClient
-from .const import CONF_REFRESH_TOKEN, DOMAIN
+from .const import CONF_LIBRARY_ID, CONF_REFRESH_TOKEN, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -56,6 +60,11 @@ class GrimmoryConfigFlow(ConfigFlow, domain=DOMAIN):
 
     VERSION = 1
 
+    def __init__(self) -> None:
+        """Initialize the config flow."""
+        super().__init__()
+        self._login_data: dict[str, Any] = {}
+
     @override
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -69,7 +78,7 @@ class GrimmoryConfigFlow(ConfigFlow, domain=DOMAIN):
             self._abort_if_unique_id_configured()
 
             try:
-                info = await validate_input(user_input)
+                api_data = await validate_input(user_input)
             except CannotConnect:
                 errors["base"] = "cannot_connect"
             except InvalidAuth:
@@ -78,7 +87,8 @@ class GrimmoryConfigFlow(ConfigFlow, domain=DOMAIN):
                 _LOGGER.exception("Unexpected exception")
                 errors["base"] = "unknown"
             else:
-                return self.async_create_entry(title=user_input[CONF_HOST], data=info)
+                self._login_data = api_data
+                return await self.async_step_library()
 
         return self.async_show_form(
             step_id="user",
@@ -88,6 +98,51 @@ class GrimmoryConfigFlow(ConfigFlow, domain=DOMAIN):
             ),
             errors=errors,
         )
+
+    async def async_step_library(
+        self, user_input: dict[str, any] | None = None
+    ) -> ConfigFlowResult:
+        """Handle the library selection"""
+
+        if user_input is not None:
+            library_id = user_input[CONF_LIBRARY_ID]
+
+            return self.async_create_entry(
+                title=self._login_data[CONF_HOST],
+                data={
+                    **self._login_data,
+                    CONF_LIBRARY_ID: (None if library_id == "all" else int(library_id)),
+                },
+            )
+
+        client = GrimmoryApiClient(
+            host=self._login_data[CONF_HOST],
+            token=self._login_data[CONF_TOKEN],
+        )
+
+        libraries = await client.get_libraries()
+
+        data_schema = probatio.Schema(
+            {
+                probatio.Required(CONF_LIBRARY_ID): SelectSelector(
+                    SelectSelectorConfig(
+                        options=[
+                            {"value": "all", "label": "All libraries"},
+                            *[
+                                {
+                                    "value": str(library["id"]),
+                                    "label": library["name"],
+                                }
+                                for library in libraries
+                            ],
+                        ],
+                        mode=SelectSelectorMode.DROPDOWN,
+                    )
+                )
+            }
+        )
+
+        return self.async_show_form(step_id="library", data_schema=data_schema)
 
 
 class CannotConnect(Exception):

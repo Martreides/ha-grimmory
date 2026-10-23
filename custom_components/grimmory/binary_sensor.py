@@ -1,7 +1,7 @@
 """Binary sensor platform for Grimmory."""
 
-from datetime import timedelta
 import logging
+from datetime import timedelta
 
 from homeassistant.components.binary_sensor import BinarySensorEntity
 from homeassistant.core import HomeAssistant

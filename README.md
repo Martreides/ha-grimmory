@@ -7,6 +7,7 @@ Currently provides:
 - Grimmory version and update information
 - Kobo Sync status
 - Last read book
+- Choose a specific Grimmory library or all libraries during setup
 
 ## Installation
 
