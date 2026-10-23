@@ -50,6 +50,7 @@ class GrimmoryKoboSyncEnabledSensor(BinarySensorEntity):
     def __init__(self, client: GrimmoryApiClient) -> None:
         """Initialize the sensor."""
         self._client = client
+        self._attr_unique_id = f"{client.entry.entry_id}_kobo_sync_enabled"
 
     async def async_update(self) -> None:
         """Fetch Kobo sync status."""

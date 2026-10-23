@@ -49,6 +49,7 @@ class GrimmoryUpdateEntity(UpdateEntity):
     def __init__(self, client: GrimmoryApiClient) -> None:
         """Initialize the update entity."""
         self._client = client
+        self._attr_unique_id = f"{client.entry.entry_id}_version"
 
     async def async_update(self) -> None:
         """Fetch the latest version information."""

@@ -51,6 +51,7 @@ class GrimmoryBookCountSensor(SensorEntity):
     def __init__(self, client: GrimmoryApiClient) -> None:
         """Initialize the sensor."""
         self._client = client
+        self._attr_unique_id = f"{client.entry.entry_id}_book_count"
 
     async def async_update(self) -> None:
         """Fetch number of books."""
@@ -73,6 +74,7 @@ class GrimmoryLastReadSensor(SensorEntity):
     def __init__(self, client: GrimmoryApiClient) -> None:
         """Initialize the sensor."""
         self._client = client
+        self._attr_unique_id = f"{client.entry.entry_id}_last_read_book"
 
     async def async_update(self) -> None:
         """Fetch last read book."""
