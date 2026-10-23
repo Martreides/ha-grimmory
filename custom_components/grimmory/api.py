@@ -290,7 +290,7 @@ class GrimmoryApiClient:
         """Request a refresh of one or all libraries."""
 
         if self.entry is None:
-            raise RuntimeError("A config entry is required to get the last read book")
+            raise RuntimeError("A config entry is required to refresh libraries")
 
         if self.host is None or self.token is None:
             raise RuntimeError("Client is not available")
