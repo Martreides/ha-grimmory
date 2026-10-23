@@ -34,9 +34,12 @@ async def validate_input(data: dict[str, Any]) -> dict[str, Any]:
         response_json = await GrimmoryApiClient.login(data)
     except aiohttp.ClientResponseError as err:
         if err.status in (401, 403):
+            _LOGGER.warning("Invalid credentials for Grimmory at %s", data[CONF_HOST])
             raise InvalidAuth from None
+        _LOGGER.warning("Unable to connect to Grimmory at %s", data[CONF_HOST])
         raise CannotConnect from None
     except aiohttp.ClientError, TimeoutError:
+        _LOGGER.warning("Unable to connect to Grimmory at %s", data[CONF_HOST])
         raise CannotConnect from None
 
     # Return info that you want to store in the config entry.
