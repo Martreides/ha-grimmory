@@ -39,6 +39,7 @@ class GrimmoryUpdateEntity(UpdateEntity):
     _attr_has_entity_name = True
     _attr_name = "Grimmory"
     _attr_unique_id = "version"
+    _attr_icon = "mdi:package-up"
     _attr_device_info = DeviceInfo(
         identifiers={(DOMAIN, "grimmory")},
         name="Grimmory",

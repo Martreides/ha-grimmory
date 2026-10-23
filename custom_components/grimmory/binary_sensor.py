@@ -40,6 +40,7 @@ class GrimmoryKoboSyncEnabledSensor(BinarySensorEntity):
     _attr_has_entity_name = True
     _attr_name = "Kobo Sync Enabled"
     _attr_unique_id = "kobo_sync_enabled"
+    _attr_icon = "mdi:book-sync-outline"
     _attr_device_info = DeviceInfo(
         identifiers={(DOMAIN, "grimmory")},
         name="Grimmory",

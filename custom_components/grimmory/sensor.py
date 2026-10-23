@@ -41,6 +41,7 @@ class GrimmoryBookCountSensor(SensorEntity):
     _attr_has_entity_name = True
     _attr_name = "Book count"
     _attr_unique_id = "book_count"
+    _attr_icon = "mdi:bookshelf"
     _attr_device_info = DeviceInfo(
         identifiers={(DOMAIN, "grimmory")},
         name="Grimmory",
@@ -62,6 +63,7 @@ class GrimmoryLastReadSensor(SensorEntity):
     _attr_has_entity_name = True
     _attr_name = "Last read book"
     _attr_unique_id = "last_read_book"
+    _attr_icon = "mdi:book-clock-outline"
     _attr_device_info = DeviceInfo(
         identifiers={(DOMAIN, "grimmory")},
         name="Grimmory",
