@@ -8,3 +8,4 @@ venv/
 
 # IDE
 .vscode/
+*.code-workspace

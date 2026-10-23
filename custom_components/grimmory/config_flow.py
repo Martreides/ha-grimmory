@@ -5,12 +5,16 @@ from typing import Any, override
 
 import aiohttp
 import probatio
-
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_TOKEN, CONF_USERNAME
+from homeassistant.helpers.selector import (
+    SelectSelector,
+    SelectSelectorConfig,
+    SelectSelectorMode,
+)
 
 from .api import GrimmoryApiClient
-from .const import CONF_REFRESH_TOKEN, DOMAIN
+from .const import CONF_LIBRARY_ID, CONF_REFRESH_TOKEN, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -34,9 +38,12 @@ async def validate_input(data: dict[str, Any]) -> dict[str, Any]:
         response_json = await GrimmoryApiClient.login(data)
     except aiohttp.ClientResponseError as err:
         if err.status in (401, 403):
+            _LOGGER.warning("Invalid credentials for Grimmory at %s", data[CONF_HOST])
             raise InvalidAuth from None
+        _LOGGER.warning("Unable to connect to Grimmory at %s", data[CONF_HOST])
         raise CannotConnect from None
     except aiohttp.ClientError, TimeoutError:
+        _LOGGER.warning("Unable to connect to Grimmory at %s", data[CONF_HOST])
         raise CannotConnect from None
 
     # Return info that you want to store in the config entry.
@@ -53,6 +60,11 @@ class GrimmoryConfigFlow(ConfigFlow, domain=DOMAIN):
 
     VERSION = 1
 
+    def __init__(self) -> None:
+        """Initialize the config flow."""
+        super().__init__()
+        self._login_data: dict[str, Any] = {}
+
     @override
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -66,7 +78,7 @@ class GrimmoryConfigFlow(ConfigFlow, domain=DOMAIN):
             self._abort_if_unique_id_configured()
 
             try:
-                info = await validate_input(user_input)
+                api_data = await validate_input(user_input)
             except CannotConnect:
                 errors["base"] = "cannot_connect"
             except InvalidAuth:
@@ -75,11 +87,62 @@ class GrimmoryConfigFlow(ConfigFlow, domain=DOMAIN):
                 _LOGGER.exception("Unexpected exception")
                 errors["base"] = "unknown"
             else:
-                return self.async_create_entry(title=user_input[CONF_HOST], data=info)
+                self._login_data = api_data
+                return await self.async_step_library()
 
         return self.async_show_form(
-            step_id="user", data_schema=STEP_USER_DATA_SCHEMA, errors=errors
+            step_id="user",
+            data_schema=self.add_suggested_values_to_schema(
+                STEP_USER_DATA_SCHEMA,
+                user_input or {},
+            ),
+            errors=errors,
         )
+
+    async def async_step_library(
+        self, user_input: dict[str, any] | None = None
+    ) -> ConfigFlowResult:
+        """Handle the library selection"""
+
+        if user_input is not None:
+            library_id = user_input[CONF_LIBRARY_ID]
+
+            return self.async_create_entry(
+                title=self._login_data[CONF_HOST],
+                data={
+                    **self._login_data,
+                    CONF_LIBRARY_ID: (None if library_id == "all" else int(library_id)),
+                },
+            )
+
+        client = GrimmoryApiClient(
+            host=self._login_data[CONF_HOST],
+            token=self._login_data[CONF_TOKEN],
+        )
+
+        libraries = await client.get_libraries()
+
+        data_schema = probatio.Schema(
+            {
+                probatio.Required(CONF_LIBRARY_ID): SelectSelector(
+                    SelectSelectorConfig(
+                        options=[
+                            {"value": "all", "label": "All libraries"},
+                            *[
+                                {
+                                    "value": str(library["id"]),
+                                    "label": library["name"],
+                                }
+                                for library in libraries
+                            ],
+                        ],
+                        mode=SelectSelectorMode.DROPDOWN,
+                    )
+                )
+            }
+        )
+
+        return self.async_show_form(step_id="library", data_schema=data_schema)
 
 
 class CannotConnect(Exception):

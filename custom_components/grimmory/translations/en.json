@@ -1,22 +1,32 @@
 {
-    "config": {
-        "abort": {
-            "already_configured": "Device is already configured"
-        },
-        "error": {
-            "cannot_connect": "Failed to connect",
-            "invalid_auth": "Invalid authentication",
-            "invalid_host": "Enter a valid HTTP or HTTPS URL without a query or fragment.",
-            "unknown": "Unexpected error"
-        },
-        "step": {
-            "user": {
-                "data": {
-                    "host": "Host",
-                    "password": "Password",
-                    "username": "Username"
-                }
-            }
+  "config": {
+    "abort": {
+      "already_configured": "Device is already configured"
+    },
+    "error": {
+      "cannot_connect": "Failed to connect",
+      "invalid_auth": "Invalid authentication",
+      "invalid_host": "Enter a valid HTTP or HTTPS URL without a query or fragment.",
+      "unknown": "Unexpected error"
+    },
+    "step": {
+      "user": {
+        "data": {
+          "host": "Host",
+          "password": "Password",
+          "username": "Username"
         }
+      },
+      "library": {
+        "title": "Choose a library",
+        "description": "Select which Grimmory library you want to monitor.",
+        "data": {
+          "library_id": "Library"
+        },
+        "data_description": {
+          "library_id": "Choose a specific library or monitor all libraries."
+        }
+      }
     }
+  }
 }
