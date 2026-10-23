@@ -115,7 +115,7 @@ class GrimmoryApiClient:
         return True
 
     async def _request(self, url, params, headers, retry=True):
-        """Make a request to the Grimmory API."""
+        """Make a GET request to the Grimmory API."""
 
         token_used = self.token
 
@@ -137,6 +137,29 @@ class GrimmoryApiClient:
 
             response.raise_for_status()
             return await response.json()
+
+    async def _put(self, url, params, headers, retry=True):
+        """Make a PUT request to the Grimmory API."""
+
+        token_used = self.token
+
+        async with (
+            aiohttp.ClientSession() as session,
+            session.put(url, params=params, headers=headers) as response,
+        ):
+            if response.status == 401 and retry:
+                _LOGGER.debug("Unauthorized request to Grimmory API at %s", self.host)
+                await self._refresh_token(token_used)
+                return await self._put(
+                    url,
+                    params,
+                    {
+                        "Authorization": f"Bearer {self.token}",
+                    },
+                    retry=False,
+                )
+
+            response.raise_for_status()
 
     async def get_book_count(self):
         """Get the number of books in Grimmory."""
@@ -204,7 +227,7 @@ class GrimmoryApiClient:
             },
         )
 
-        _LOGGER.debug("Retrieved Kobo settings: %s", kobo_settings)
+        _LOGGER.debug("Retrieved Kobo settings: %s", kobo_settings["syncEnabled"])
 
         return kobo_settings["syncEnabled"]
 
@@ -262,3 +285,32 @@ class GrimmoryApiClient:
         _LOGGER.debug("Retrieved %s libraries from Grimmory API", len(libraries))
 
         return libraries
+
+    async def refresh_libraries(self):
+        """Request a refresh of one or all libraries."""
+
+        if self.entry is None:
+            raise RuntimeError("A config entry is required to get the last read book")
+
+        if self.host is None or self.token is None:
+            raise RuntimeError("Client is not available")
+
+        library_id = self.entry.data[CONF_LIBRARY_ID]
+        if library_id is None:
+            libraries = await self.get_libraries()
+            for library in libraries:
+                await self._put(
+                    url=f"{self.host}/api/v1/libraries/{library['libraryId']}/refresh",
+                    params={},
+                    headers={
+                        "Authorization": f"Bearer {self.token}",
+                    },
+                )
+        else:
+            await self._put(
+                url=f"{self.host}/api/v1/libraries/{library_id}/refresh",
+                params={},
+                headers={
+                    "Authorization": f"Bearer {self.token}",
+                },
+            )

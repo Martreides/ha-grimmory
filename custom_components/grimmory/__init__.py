@@ -8,7 +8,12 @@ from homeassistant.core import HomeAssistant
 
 from .api import GrimmoryApiClient
 
-_PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.UPDATE, Platform.BINARY_SENSOR]
+_PLATFORMS: list[Platform] = [
+    Platform.SENSOR,
+    Platform.UPDATE,
+    Platform.BINARY_SENSOR,
+    Platform.BUTTON,
+]
 
 type GrimmoryConfigEntry = ConfigEntry[GrimmoryApiClient]
 
