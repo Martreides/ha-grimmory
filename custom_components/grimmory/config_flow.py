@@ -124,27 +124,7 @@ class GrimmoryConfigFlow(ConfigFlow, domain=DOMAIN):
             token=self._login_data[CONF_TOKEN],
         )
 
-        libraries = await client.get_libraries()
-
-        data_schema = probatio.Schema(
-            {
-                probatio.Required(CONF_LIBRARY_ID): SelectSelector(
-                    SelectSelectorConfig(
-                        options=[
-                            {"value": "all", "label": "All libraries"},
-                            *[
-                                {
-                                    "value": str(library["id"]),
-                                    "label": library["name"],
-                                }
-                                for library in libraries
-                            ],
-                        ],
-                        mode=SelectSelectorMode.DROPDOWN,
-                    )
-                )
-            }
-        )
+        data_schema = await self._get_library_schema(client)
 
         return self.async_show_form(step_id="library", data_schema=data_schema)
 
@@ -169,11 +149,23 @@ class GrimmoryConfigFlow(ConfigFlow, domain=DOMAIN):
             host=entry.data[CONF_HOST], token=entry.data[CONF_TOKEN]
         )
 
+        data_schema = await self._get_library_schema(
+            client, entry.data.get(CONF_LIBRARY_ID)
+        )
+
+        return self.async_show_form(step_id="reconfigure", data_schema=data_schema)
+
+    async def _get_library_schema(
+        self,
+        client: GrimmoryApiClient,
+        current_library_id: int | None = None,
+    ) -> probatio.Schema:
+        """Build the library selection schema."""
+
         libraries = await client.get_libraries()
-        current_library_id = entry.data.get(CONF_LIBRARY_ID)
         current_value = "all" if current_library_id is None else str(current_library_id)
 
-        data_schema = probatio.Schema(
+        return probatio.Schema(
             {
                 probatio.Required(
                     CONF_LIBRARY_ID, default=current_value
@@ -194,8 +186,6 @@ class GrimmoryConfigFlow(ConfigFlow, domain=DOMAIN):
                 )
             }
         )
-
-        return self.async_show_form(step_id="reconfigure", data_schema=data_schema)
 
 
 class CannotConnect(Exception):
