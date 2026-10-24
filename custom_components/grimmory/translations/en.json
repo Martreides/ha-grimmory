@@ -26,6 +26,16 @@
         "data_description": {
           "library_id": "Choose a specific library or monitor all libraries."
         }
+      },
+      "reconfigure": {
+        "title": "Choose a library",
+        "description": "Select which Grimmory library you want to monitor.",
+        "data": {
+          "library_id": "Library"
+        },
+        "data_description": {
+          "library_id": "Choose a specific library or monitor all libraries."
+        }
       }
     }
   }

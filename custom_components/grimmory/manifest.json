@@ -1,6 +1,6 @@
 {
   "domain": "grimmory",
-  "name": "grimmory",
+  "name": "Grimmory",
   "codeowners": ["@martreides"],
   "config_flow": true,
   "documentation": "https://github.com/Martreides/ha-grimmory",

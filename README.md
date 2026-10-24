@@ -1,13 +1,13 @@
 # Grimmory
 
-A custom Home Assistant integration for [Grimmory](https://grimmory.org). The integration uses the Grimmory API.
+An unofficial custom Home Assistant integration for [Grimmory](https://grimmory.org). The integration uses the Grimmory API.
 
 Currently provides:
 - Book count
 - Grimmory version and update information
 - Kobo Sync status
 - Last read book
-- Choose a specific Grimmory library or all libraries during setup
+- Choose a specific Grimmory library or all libraries during setup. Library selection can be changed using the reconfigure option.
 - Refresh libraries with a button: refreshes the selected library, or every library when **All libraries** is selected.
 
 ## Installation

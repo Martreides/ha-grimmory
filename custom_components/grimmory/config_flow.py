@@ -100,7 +100,7 @@ class GrimmoryConfigFlow(ConfigFlow, domain=DOMAIN):
         )
 
     async def async_step_library(
-        self, user_input: dict[str, any] | None = None
+        self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Handle the library selection"""
 
@@ -143,6 +143,55 @@ class GrimmoryConfigFlow(ConfigFlow, domain=DOMAIN):
         )
 
         return self.async_show_form(step_id="library", data_schema=data_schema)
+
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Config flow to reconfigure the integration."""
+
+        entry = self._get_reconfigure_entry()
+
+        if user_input is not None:
+            library_id = user_input[CONF_LIBRARY_ID]
+
+            return self.async_update_reload_and_abort(
+                entry=entry,
+                data_updates={
+                    CONF_LIBRARY_ID: (None if library_id == "all" else int(library_id)),
+                },
+            )
+
+        client = GrimmoryApiClient(
+            host=entry.data[CONF_HOST], token=entry.data[CONF_TOKEN]
+        )
+
+        libraries = await client.get_libraries()
+        current_library_id = entry.data.get(CONF_LIBRARY_ID)
+        current_value = "all" if current_library_id is None else str(current_library_id)
+
+        data_schema = probatio.Schema(
+            {
+                probatio.Required(
+                    CONF_LIBRARY_ID, default=current_value
+                ): SelectSelector(
+                    SelectSelectorConfig(
+                        options=[
+                            {"value": "all", "label": "All libraries"},
+                            *[
+                                {
+                                    "value": str(library["id"]),
+                                    "label": library["name"],
+                                }
+                                for library in libraries
+                            ],
+                        ],
+                        mode=SelectSelectorMode.DROPDOWN,
+                    )
+                )
+            }
+        )
+
+        return self.async_show_form(step_id="reconfigure", data_schema=data_schema)
 
 
 class CannotConnect(Exception):
