@@ -1,3 +1,7 @@
+# Copyright (C) 2026 Michiel Cornelissen
+# This file is part of ha-grimmory
+# SPDX-License-Identifier: GPL-3.0-only
+
 """Config flow for the grimmory integration."""
 
 import logging

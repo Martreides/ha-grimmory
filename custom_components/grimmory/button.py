@@ -1,3 +1,6 @@
+# Copyright (C) 2026 Michiel Cornelissen
+# This file is part of ha-grimmory
+# SPDX-License-Identifier: GPL-3.0-only
 """Button platform for Grimmory."""
 
 from homeassistant.components.button import ButtonEntity
