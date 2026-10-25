@@ -38,5 +38,22 @@
         }
       }
     }
+  },
+  "config_subentries": {
+    "book": {
+      "entry_type": "Book",
+      "initiate_flow": {
+        "user": "Add book"
+      },
+      "step": {
+        "user": {
+          "title": "Add a book",
+          "description": "Enter the ID of the book you want to track in Grimmory."
+        }
+      },
+      "error": {
+        "book_not_in_library": "This book is not in the selected library."
+      }
+    }
   }
 }

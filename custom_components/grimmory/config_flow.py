@@ -9,7 +9,13 @@ from typing import Any, override
 
 import aiohttp
 import probatio
-from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
+from homeassistant.config_entries import (
+    ConfigEntry,
+    ConfigFlow,
+    ConfigFlowResult,
+    ConfigSubentryFlow,
+    SubentryFlowResult,
+)
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_TOKEN, CONF_USERNAME
 from homeassistant.helpers.selector import (
     SelectSelector,
@@ -68,6 +74,16 @@ class GrimmoryConfigFlow(ConfigFlow, domain=DOMAIN):
         """Initialize the config flow."""
         super().__init__()
         self._login_data: dict[str, Any] = {}
+
+    @staticmethod
+    @override
+    def async_get_supported_subentry_types(
+        config_entry: ConfigEntry,
+    ) -> dict[str, type[ConfigSubentryFlow]]:
+        """Return supported subentry types."""
+        return {
+            "book": GrimmoryBookSubentryFlow,
+        }
 
     @override
     async def async_step_user(
@@ -185,6 +201,53 @@ class GrimmoryConfigFlow(ConfigFlow, domain=DOMAIN):
                     )
                 )
             }
+        )
+
+
+class GrimmoryBookSubentryFlow(ConfigSubentryFlow):
+    """Handle Grimmory book subentries."""
+
+    async def async_step_user(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        """Add a book by ID."""
+
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            book_id = user_input["book_id"]
+            entry = self._get_entry()
+            client = GrimmoryApiClient(
+                hass=self.hass,
+                entry=entry,
+            )
+
+            try:
+                book = await client.get_book(book_id)
+            except Exception:
+                _LOGGER.exception("Failed to retrieve Grimmory book %s", book_id)
+                errors["base"] = "cannot_connect"
+            else:
+                if (
+                    entry.data.get(CONF_LIBRARY_ID) is not None
+                    and book.get("libraryId") != entry.data[CONF_LIBRARY_ID]
+                ):
+                    errors["base"] = "book_not_in_library"
+                else:
+                    metadata = book["metadata"]
+                    return self.async_create_entry(
+                        title=metadata["title"],
+                        unique_id=str(book["id"]),
+                        data={
+                            "book_id": book["id"],
+                            "title": metadata["title"],
+                        },
+                    )
+
+        return self.async_show_form(
+            step_id="user",
+            data_schema=probatio.Schema({probatio.Required("book_id"): int}),
+            errors=errors,
         )
 
 
