@@ -9,7 +9,13 @@ from typing import Any, override
 
 import aiohttp
 import probatio
-from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
+from homeassistant.config_entries import (
+    ConfigEntry,
+    ConfigFlow,
+    ConfigFlowResult,
+    ConfigSubentryFlow,
+    SubentryFlowResult,
+)
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_TOKEN, CONF_USERNAME
 from homeassistant.helpers.selector import (
     SelectSelector,
@@ -69,6 +75,16 @@ class GrimmoryConfigFlow(ConfigFlow, domain=DOMAIN):
         super().__init__()
         self._login_data: dict[str, Any] = {}
 
+    @staticmethod
+    @override
+    def async_get_supported_subentry_types(
+        config_entry: ConfigEntry,
+    ) -> dict[str, type[ConfigSubentryFlow]]:
+        """Return supported subentry types."""
+        return {
+            "book": GrimmoryBookSubentryFlow,
+        }
+
     @override
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -124,27 +140,7 @@ class GrimmoryConfigFlow(ConfigFlow, domain=DOMAIN):
             token=self._login_data[CONF_TOKEN],
         )
 
-        libraries = await client.get_libraries()
-
-        data_schema = probatio.Schema(
-            {
-                probatio.Required(CONF_LIBRARY_ID): SelectSelector(
-                    SelectSelectorConfig(
-                        options=[
-                            {"value": "all", "label": "All libraries"},
-                            *[
-                                {
-                                    "value": str(library["id"]),
-                                    "label": library["name"],
-                                }
-                                for library in libraries
-                            ],
-                        ],
-                        mode=SelectSelectorMode.DROPDOWN,
-                    )
-                )
-            }
-        )
+        data_schema = await self._get_library_schema(client)
 
         return self.async_show_form(step_id="library", data_schema=data_schema)
 
@@ -169,11 +165,23 @@ class GrimmoryConfigFlow(ConfigFlow, domain=DOMAIN):
             host=entry.data[CONF_HOST], token=entry.data[CONF_TOKEN]
         )
 
+        data_schema = await self._get_library_schema(
+            client, entry.data.get(CONF_LIBRARY_ID)
+        )
+
+        return self.async_show_form(step_id="reconfigure", data_schema=data_schema)
+
+    async def _get_library_schema(
+        self,
+        client: GrimmoryApiClient,
+        current_library_id: int | None = None,
+    ) -> probatio.Schema:
+        """Build the library selection schema."""
+
         libraries = await client.get_libraries()
-        current_library_id = entry.data.get(CONF_LIBRARY_ID)
         current_value = "all" if current_library_id is None else str(current_library_id)
 
-        data_schema = probatio.Schema(
+        return probatio.Schema(
             {
                 probatio.Required(
                     CONF_LIBRARY_ID, default=current_value
@@ -195,7 +203,52 @@ class GrimmoryConfigFlow(ConfigFlow, domain=DOMAIN):
             }
         )
 
-        return self.async_show_form(step_id="reconfigure", data_schema=data_schema)
+
+class GrimmoryBookSubentryFlow(ConfigSubentryFlow):
+    """Handle Grimmory book subentries."""
+
+    async def async_step_user(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        """Add a book by ID."""
+
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            book_id = user_input["book_id"]
+            entry = self._get_entry()
+            client = GrimmoryApiClient(
+                hass=self.hass,
+                entry=entry,
+            )
+
+            try:
+                book = await client.get_book(book_id)
+            except Exception:
+                _LOGGER.exception("Failed to retrieve Grimmory book %s", book_id)
+                errors["base"] = "cannot_connect"
+            else:
+                if (
+                    entry.data.get(CONF_LIBRARY_ID) is not None
+                    and book.get("libraryId") != entry.data[CONF_LIBRARY_ID]
+                ):
+                    errors["base"] = "book_not_in_library"
+                else:
+                    metadata = book["metadata"]
+                    return self.async_create_entry(
+                        title=metadata["title"],
+                        unique_id=str(book["id"]),
+                        data={
+                            "book_id": book["id"],
+                            "title": metadata["title"],
+                        },
+                    )
+
+        return self.async_show_form(
+            step_id="user",
+            data_schema=probatio.Schema({probatio.Required("book_id"): int}),
+            errors=errors,
+        )
 
 
 class CannotConnect(Exception):

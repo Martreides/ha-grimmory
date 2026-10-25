@@ -317,3 +317,19 @@ class GrimmoryApiClient:
                     "Authorization": f"Bearer {self.token}",
                 },
             )
+
+    async def get_book(self, book_id: int) -> dict[str, Any]:
+        """Get a book by ID."""
+
+        if self.entry is None:
+            raise RuntimeError("A config entry is required to retrieve a book by ID")
+        if self.host is None or self.token is None:
+            raise RuntimeError("Client is not available")
+
+        return await self._request(
+            f"{self.host}/api/v1/books/{book_id}",
+            params={
+                "withDescription": "false",
+            },
+            headers={"Authorization": f"Bearer {self.token}"},
+        )

@@ -37,6 +37,16 @@ async def async_setup_entry(
 
     async_add_entities(sensors, update_before_add=True)
 
+    for subentry in entry.get_subentries_of_type("book"):
+        async_add_entities(
+            [
+                GrimmoryBookReadStatusSensor(client, subentry),
+                GrimmoryBookKoreaderProgressSensor(client, subentry),
+            ],
+            update_before_add=True,
+            config_subentry_id=subentry.subentry_id,
+        )
+
 
 class GrimmoryBookCountSensor(SensorEntity):
     """A sensor for the book count in Grimmory."""
@@ -93,3 +103,66 @@ class GrimmoryLastReadSensor(SensorEntity):
             "read_progress": book.get("readProgress"),
             "series": book.get("seriesName"),
         }
+
+
+class GrimmoryBookReadStatusSensor(SensorEntity):
+    """Sensor for the read status of a Grimmory book."""
+
+    _attr_has_entity_name = True
+    _attr_icon = "mdi:book-check-outline"
+
+    def __init__(
+        self,
+        client: GrimmoryApiClient,
+        subentry,
+    ) -> None:
+        """Initialize the sensor."""
+
+        self._client = client
+        self._book_id = subentry.data["book_id"]
+        self._attr_name = f"{subentry.title} Read Status"
+        self._attr_unique_id = f"book_{self._book_id}_read_status"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, f"book_{self._book_id}")},
+            name=subentry.title,
+            manufacturer="Grimmory",
+            model="Book",
+        )
+
+    async def async_update(self) -> None:
+        """Fetch the book's read status."""
+        book = await self._client.get_book(self._book_id)
+        _LOGGER.debug(book)
+        self._attr_native_value = book.get("readStatus")
+
+
+class GrimmoryBookKoreaderProgressSensor(SensorEntity):
+    """Sensor for the Koreader progress of a Grimmory book."""
+
+    _attr_has_entity_name = True
+    _attr_icon = "mdi:file-percent-outline"
+
+    def __init__(
+        self,
+        client: GrimmoryApiClient,
+        subentry,
+    ) -> None:
+        """Initialize the sensor."""
+
+        self._client = client
+        self._book_id = subentry.data["book_id"]
+        self._attr_name = f"{subentry.title} Koreader Progress"
+        self._attr_unique_id = f"book_{self._book_id}_koreader_progress"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, f"book_{self._book_id}")},
+            name=subentry.title,
+            manufacturer="Grimmory",
+            model="Book",
+        )
+
+    async def async_update(self) -> None:
+        """Fetch the book's koreader pogress."""
+        book = await self._client.get_book(self._book_id)
+        _LOGGER.debug(book)
+        progress = book.get("koreaderProgress")
+        self._attr_native_value = progress.get("percentage") if progress else None
