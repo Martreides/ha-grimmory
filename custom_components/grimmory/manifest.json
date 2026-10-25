@@ -1,12 +1,12 @@
 {
-  "domain": "grimmory",
-  "name": "Grimmory",
   "codeowners": ["@martreides"],
   "config_flow": true,
   "documentation": "https://github.com/Martreides/ha-grimmory",
-  "issue_tracker": "https://github.com/Martreides/ha-grimmory/issues",
+  "domain": "grimmory",
   "integration_type": "service",
   "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/Martreides/ha-grimmory/issues",
+  "name": "Grimmory",
   "requirements": [],
-  "version": "0.1.0"
+  "version": "0.2.1"
 }
