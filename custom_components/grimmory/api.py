@@ -164,6 +164,29 @@ class GrimmoryApiClient:
 
             response.raise_for_status()
 
+    async def _post(self, url, params, headers, retry=True):
+        """Make a POST request to the Grimmory API."""
+
+        token_used = self.token
+
+        async with (
+            aiohttp.ClientSession() as session,
+            session.post(url, params=params, headers=headers) as response,
+        ):
+            if response.status == 401 and retry:
+                _LOGGER.debug("Unauthorized request to Grimmory API at %s", self.host)
+                await self._refresh_token(token_used)
+                return await self._post(
+                    url,
+                    params,
+                    {
+                        "Authorization": f"Bearer {self.token}",
+                    },
+                    retry=False,
+                )
+
+            response.raise_for_status()
+
     async def get_book_count(self):
         """Get the number of books in Grimmory."""
 
@@ -318,6 +341,18 @@ class GrimmoryApiClient:
                 },
             )
 
+    async def rescan_bookdrop_folder(self) -> None:
+        """Request a rescan of the Grimmory bookdrop folder."""
+
+        if self.host is None or self.token is None:
+            raise RuntimeError("Client is not available")
+
+        await self._post(
+            url=f"{self.host}/api/v1/bookdrop/rescan",
+            params={},
+            headers={"Authorization": f"Bearer {self.token}"},
+        )
+
     async def get_book(self, book_id: int) -> dict[str, Any]:
         """Get a book by ID."""
 
@@ -331,5 +366,28 @@ class GrimmoryApiClient:
             params={
                 "withDescription": "false",
             },
+            headers={"Authorization": f"Bearer {self.token}"},
+        )
+
+    async def get_bookdrop_files_by_status(
+        self,
+        status: str,
+        page: int | None = None,
+        size: int | None = None,
+    ) -> dict[str, Any]:
+        """Get bookdrop files filtered by status, optionally paginated."""
+
+        if self.host is None or self.token is None:
+            raise RuntimeError("Client is not available")
+
+        params: dict[str, str | int] = {"status": status}
+        if page is not None:
+            params["page"] = page
+        if size is not None:
+            params["size"] = size
+
+        return await self._request(
+            f"{self.host}/api/v1/bookdrop/files",
+            params=params,
             headers={"Authorization": f"Bearer {self.token}"},
         )

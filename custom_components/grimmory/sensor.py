@@ -31,6 +31,7 @@ async def async_setup_entry(
 
     sensors = [
         GrimmoryBookCountSensor(client),
+        GrimmoryBookdropPendingReviewSensor(client),
         GrimmoryLastReadSensor(client),
     ]
     _LOGGER.debug("Setting up Grimmory sensors: %s", sensors)
@@ -68,6 +69,29 @@ class GrimmoryBookCountSensor(SensorEntity):
     async def async_update(self) -> None:
         """Fetch number of books."""
         self._attr_native_value = await self._client.get_book_count()
+
+
+class GrimmoryBookdropPendingReviewSensor(SensorEntity):
+    """Sensor for bookdrop files pending review."""
+
+    _attr_has_entity_name = True
+    _attr_name = "Bookdrop files pending review"
+    _attr_icon = "mdi:book-alert-outline"
+    _attr_device_info = DeviceInfo(
+        identifiers={(DOMAIN, "grimmory")},
+        name="Grimmory",
+        manufacturer="Grimmory",
+    )
+
+    def __init__(self, client: GrimmoryApiClient) -> None:
+        """Initialize the sensor."""
+        self._client = client
+        self._attr_unique_id = f"{client.entry.entry_id}_bookdrop_pending_review"
+
+    async def async_update(self) -> None:
+        """Fetch the number of bookdrop files pending review."""
+        files = await self._client.get_bookdrop_files_by_status("PENDING_REVIEW")
+        self._attr_native_value = files["page"]["totalElements"]
 
 
 class GrimmoryLastReadSensor(SensorEntity):

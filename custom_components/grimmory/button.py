@@ -22,7 +22,10 @@ async def async_setup_entry(
 
     client = entry.runtime_data
 
-    buttons = [GrimmoryRefreshButton(client)]
+    buttons = [
+        GrimmoryRefreshButton(client),
+        GrimmoryBookdropRescanButton(client),
+    ]
 
     async_add_entities(buttons)
 
@@ -47,3 +50,25 @@ class GrimmoryRefreshButton(ButtonEntity):
     async def async_press(self) -> None:
         """Refresh the configured Grimmory library or libraries."""
         await self._client.refresh_libraries()
+
+
+class GrimmoryBookdropRescanButton(ButtonEntity):
+    """Button to rescan the Grimmory bookdrop folder."""
+
+    _attr_has_entity_name = True
+    _attr_name = "Rescan bookdrop folder"
+    _attr_icon = "mdi:folder-sync-outline"
+    _attr_device_info = DeviceInfo(
+        identifiers={(DOMAIN, "grimmory")},
+        name="Grimmory",
+        manufacturer="Grimmory",
+    )
+
+    def __init__(self, client: GrimmoryApiClient) -> None:
+        """Initialize the button."""
+        self._client = client
+        self._attr_unique_id = f"{client.entry.entry_id}_bookdrop_rescan"
+
+    async def async_press(self) -> None:
+        """Request a rescan of the Grimmory bookdrop folder."""
+        await self._client.rescan_bookdrop_folder()
