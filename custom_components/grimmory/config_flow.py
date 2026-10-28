@@ -140,7 +140,14 @@ class GrimmoryConfigFlow(ConfigFlow, domain=DOMAIN):
             token=self._login_data[CONF_TOKEN],
         )
 
-        data_schema = await self._get_library_schema(client)
+        try:
+            data_schema = await self._get_library_schema(client)
+        except (aiohttp.ClientError, TimeoutError):
+            _LOGGER.warning(
+                "Unable to retrieve Grimmory libraries from %s",
+                self._login_data[CONF_HOST],
+            )
+            return self.async_abort(reason="cannot_connect")
 
         return self.async_show_form(step_id="library", data_schema=data_schema)
 
@@ -165,9 +172,15 @@ class GrimmoryConfigFlow(ConfigFlow, domain=DOMAIN):
             host=entry.data[CONF_HOST], token=entry.data[CONF_TOKEN]
         )
 
-        data_schema = await self._get_library_schema(
-            client, entry.data.get(CONF_LIBRARY_ID)
-        )
+        try:
+            data_schema = await self._get_library_schema(
+                client, entry.data.get(CONF_LIBRARY_ID)
+            )
+        except (aiohttp.ClientError, TimeoutError):
+            _LOGGER.warning(
+                "Unable to retrieve Grimmory libraries from %s", entry.data[CONF_HOST]
+            )
+            return self.async_abort(reason="cannot_connect")
 
         return self.async_show_form(step_id="reconfigure", data_schema=data_schema)
 
