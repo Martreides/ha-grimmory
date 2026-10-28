@@ -7,9 +7,11 @@ An unofficial custom Home Assistant integration for [Grimmory](https://grimmory.
 | Entity | Description |
 | --- | --- |
 | Book count | Number of books in the selected library, or across all libraries. |
+| Bookdrop files pending review | Number of files in Grimmory's bookdrop queue awaiting review. |
 | Last read book | Title of the last read book. Authors, series, last-read time, and read progress are available as attributes. |
 | Kobo Sync Enabled | Whether Kobo sync is enabled in Grimmory. |
 | Refresh libraries | Button to let Grimmory refresh the selected library, or every library when **All libraries** is selected. |
+| Rescan bookdrop folder | Button to ask Grimmory to rescan its bookdrop folder. |
 | Grimmory version | Update entity showing the installed and latest Grimmory versions. |
 | Book read status | A sensor created for each book added as sub entry showing the read status. |
 | KOReader progress | A sensor created for each book added as sub entry showing the reading progress based on koreader progress. |
