@@ -68,7 +68,7 @@ async def validate_input(data: dict[str, Any]) -> dict[str, Any]:
 class GrimmoryConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for grimmory."""
 
-    VERSION = 1
+    VERSION = 2
 
     def __init__(self) -> None:
         """Initialize the config flow."""

@@ -5,20 +5,32 @@
 
 import logging
 from datetime import timedelta
+from typing import Any
 
 from homeassistant.components.sensor import SensorEntity, SensorStateClass
 from homeassistant.const import PERCENTAGE
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers.device_registry import ChildDeviceInfo, DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import GrimmoryConfigEntry
 from .api import GrimmoryApiClient
-from .const import DOMAIN
+from .const import CONF_BOOKS, DOMAIN
 
 SCAN_INTERVAL = timedelta(minutes=5)
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _get_book_device_name(book: dict[str, Any], book_id: int) -> str:
+    """Build a device name from book metadata."""
+
+    metadata = book.get("metadata")
+    if metadata is None:
+        return f"Book {book_id}"
+
+    return f"{', '.join(metadata['authors'])} - {metadata['title']}"
 
 
 async def async_setup_entry(
@@ -39,14 +51,21 @@ async def async_setup_entry(
 
     async_add_entities(sensors, update_before_add=True)
 
-    for subentry in entry.get_subentries_of_type("book"):
+    device_registry = dr.async_get(hass)
+    parent_device = device_registry.async_get_device_by_identifier(
+        (DOMAIN, "grimmory"),
+        entry.entry_id,
+    )
+
+    if parent_device is None:
+        raise RuntimeError("Grimmory parent device not found")
+
+    for book in entry.options.get(CONF_BOOKS, []):
         async_add_entities(
             [
-                GrimmoryBookReadStatusSensor(client, subentry),
-                GrimmoryBookKoreaderProgressSensor(client, subentry),
+                GrimmoryBookReadStatusSensor(client, book, parent_device.id),
+                GrimmoryBookKoreaderProgressSensor(client, book, parent_device.id),
             ],
-            update_before_add=True,
-            config_subentry_id=subentry.subentry_id,
         )
 
 
@@ -139,25 +158,37 @@ class GrimmoryBookReadStatusSensor(SensorEntity):
     def __init__(
         self,
         client: GrimmoryApiClient,
-        subentry,
+        book: dict[str, Any],
+        parent_device_id: str,
     ) -> None:
         """Initialize the sensor."""
 
         self._client = client
-        self._book_id = subentry.data["book_id"]
-        self._attr_name = f"{subentry.title} Read Status"
+        self._book_id = book["book_id"]
+        self._attr_name = "Read Status"
         self._attr_unique_id = f"book_{self._book_id}_read_status"
-        self._attr_device_info = DeviceInfo(
+        self._attr_device_info = ChildDeviceInfo(
             identifiers={(DOMAIN, f"book_{self._book_id}")},
-            name=subentry.title,
-            manufacturer="Grimmory",
-            model="Book",
+            name=f"Book {self._book_id}",
+            parent_device_id=parent_device_id,
         )
 
     async def async_update(self) -> None:
         """Fetch the book's read status."""
         book = await self._client.get_book(self._book_id)
-        _LOGGER.debug(book)
+
+        device = self.device_entry
+        if device is None:
+            return
+
+        name = _get_book_device_name(book, self._book_id)
+
+        if device.name != name:
+            dr.async_get(self.hass).async_update_device(
+                device.id,
+                name=name,
+            )
+
         self._attr_native_value = book.get("readStatus")
 
 
@@ -172,24 +203,36 @@ class GrimmoryBookKoreaderProgressSensor(SensorEntity):
     def __init__(
         self,
         client: GrimmoryApiClient,
-        subentry,
+        book: dict[str, Any],
+        parent_device_id: str,
     ) -> None:
         """Initialize the sensor."""
 
         self._client = client
-        self._book_id = subentry.data["book_id"]
-        self._attr_name = f"{subentry.title} Koreader Progress"
+        self._book_id = book["book_id"]
+        self._attr_name = "Koreader Progress"
         self._attr_unique_id = f"book_{self._book_id}_koreader_progress"
-        self._attr_device_info = DeviceInfo(
+        self._attr_device_info = ChildDeviceInfo(
             identifiers={(DOMAIN, f"book_{self._book_id}")},
-            name=subentry.title,
-            manufacturer="Grimmory",
-            model="Book",
+            name=f"Book {self._book_id}",
+            parent_device_id=parent_device_id,
         )
 
     async def async_update(self) -> None:
         """Fetch the book's koreader pogress."""
         book = await self._client.get_book(self._book_id)
-        _LOGGER.debug(book)
+
+        device = self.device_entry
+        if device is None:
+            return
+
+        name = _get_book_device_name(book, self._book_id)
+
+        if device.name != name:
+            dr.async_get(self.hass).async_update_device(
+                device.id,
+                name=name,
+            )
+
         progress = book.get("koreaderProgress")
         self._attr_native_value = progress.get("percentage") if progress else None
