@@ -2,6 +2,10 @@
 
 An unofficial custom Home Assistant integration for [Grimmory](https://grimmory.org). The integration uses the Grimmory API.
 
+## Requirements
+
+Requires Home Assistant Core 2026.9 or newer. Grimmory uses child devices for tracked books, a feature introduced in [Home Assistant Core 2026.9](https://contributors.home-assistant.io/blog/2026/10/22/child-devices/).
+
 ## Features
 
 | Entity | Description |
@@ -13,8 +17,8 @@ An unofficial custom Home Assistant integration for [Grimmory](https://grimmory.
 | Refresh libraries | Button to let Grimmory refresh the selected library, or every library when **All libraries** is selected. |
 | Rescan bookdrop folder | Button to ask Grimmory to rescan its bookdrop folder. |
 | Grimmory version | Update entity showing the installed and latest Grimmory versions. |
-| Book read status | A sensor created for each book added as sub entry showing the read status. |
-| KOReader progress | A sensor created for each book added as sub entry showing the reading progress based on koreader progress. |
+| Book read status | A sensor for each tracked book, shown on a child device under Grimmory. |
+| KOReader progress | A sensor for each tracked book showing the reading progress synced through KOReader. |
 
 ## Setup
 
@@ -24,7 +28,7 @@ To change the library later, open the Grimmory config entry menu and choose **Re
 
 ## Track an individual book
 
-Start by clicking **Add book** in the dropdown menu of the Grimmory device, and enter the book's ID. You can find the ID in the book's URL: for example, in `http://192.168.1.17:6060/book/169?tab=view`, the book ID is `169` (the number after `/book/`).
+Open the Grimmory configuration entry, choose **Configure**, then select **Add a book** and enter the book's ID. You can find the ID in the book's URL: for example, in `http://192.168.1.17:6060/book/169?tab=view`, the book ID is `169` (the number after `/book/`).
 
 If you selected a specific library during setup, the book must belong to that library. With **All libraries** selected, books from any library can be added.
 

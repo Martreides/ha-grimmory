@@ -13,10 +13,10 @@ from homeassistant.config_entries import (
     ConfigEntry,
     ConfigFlow,
     ConfigFlowResult,
-    ConfigSubentryFlow,
-    SubentryFlowResult,
+    OptionsFlowWithReload,
 )
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_TOKEN, CONF_USERNAME
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.selector import (
     SelectSelector,
     SelectSelectorConfig,
@@ -24,7 +24,7 @@ from homeassistant.helpers.selector import (
 )
 
 from .api import GrimmoryApiClient
-from .const import CONF_LIBRARY_ID, CONF_REFRESH_TOKEN, DOMAIN
+from .const import CONF_BOOKS, CONF_LIBRARY_ID, CONF_REFRESH_TOKEN, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -68,22 +68,18 @@ async def validate_input(data: dict[str, Any]) -> dict[str, Any]:
 class GrimmoryConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for grimmory."""
 
-    VERSION = 1
+    VERSION = 2
 
     def __init__(self) -> None:
         """Initialize the config flow."""
         super().__init__()
         self._login_data: dict[str, Any] = {}
 
-    @staticmethod
     @override
-    def async_get_supported_subentry_types(
-        config_entry: ConfigEntry,
-    ) -> dict[str, type[ConfigSubentryFlow]]:
-        """Return supported subentry types."""
-        return {
-            "book": GrimmoryBookSubentryFlow,
-        }
+    @staticmethod
+    def async_get_options_flow(config_entry: ConfigEntry) -> OptionsFlowWithReload:
+        """Get the options flow."""
+        return GrimmoryOptionsFlow()
 
     @override
     async def async_step_user(
@@ -217,19 +213,30 @@ class GrimmoryConfigFlow(ConfigFlow, domain=DOMAIN):
         )
 
 
-class GrimmoryBookSubentryFlow(ConfigSubentryFlow):
-    """Handle Grimmory book subentries."""
+class GrimmoryOptionsFlow(OptionsFlowWithReload):
+    """Handle Grimmory book child devices as options."""
 
-    async def async_step_user(
+    async def async_step_init(
         self, user_input: dict[str, Any] | None = None
-    ) -> SubentryFlowResult:
+    ) -> ConfigFlowResult:
+        """Choose how to manage books."""
+
+        menu_options = ["add_book"]
+        if self.config_entry.options.get(CONF_BOOKS):
+            menu_options.append("remove_book")
+
+        return self.async_show_menu(step_id="init", menu_options=menu_options)
+
+    async def async_step_add_book(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
         """Add a book by ID."""
 
         errors: dict[str, str] = {}
 
         if user_input is not None:
             book_id = user_input["book_id"]
-            entry = self._get_entry()
+            entry = self.config_entry
             client = GrimmoryApiClient(
                 hass=self.hass,
                 entry=entry,
@@ -237,8 +244,12 @@ class GrimmoryBookSubentryFlow(ConfigSubentryFlow):
 
             try:
                 book = await client.get_book(book_id)
-            except Exception:
-                _LOGGER.exception("Failed to retrieve Grimmory book %s", book_id)
+            except aiohttp.ClientResponseError as err:
+                if err.status == 404:
+                    errors["base"] = "book_not_found"
+                else:
+                    errors["base"] = "cannot_connect"
+            except (aiohttp.ClientError, TimeoutError):
                 errors["base"] = "cannot_connect"
             else:
                 if (
@@ -247,20 +258,71 @@ class GrimmoryBookSubentryFlow(ConfigSubentryFlow):
                 ):
                     errors["base"] = "book_not_in_library"
                 else:
-                    metadata = book["metadata"]
-                    return self.async_create_entry(
-                        title=metadata["title"],
-                        unique_id=str(book["id"]),
-                        data={
-                            "book_id": book["id"],
-                            "title": metadata["title"],
-                        },
-                    )
+                    books = list(entry.options.get(CONF_BOOKS, []))
+                    if any(item["book_id"] == book["id"] for item in books):
+                        errors["base"] = "book_already_added"
+                    else:
+                        books.append(
+                            {
+                                "book_id": book["id"],
+                                "metadata": book.get("metadata"),
+                            }
+                        )
+                        return self.async_create_entry(
+                            title="", data={CONF_BOOKS: books}
+                        )
 
         return self.async_show_form(
-            step_id="user",
+            step_id="add_book",
             data_schema=probatio.Schema({probatio.Required("book_id"): int}),
             errors=errors,
+        )
+
+    async def async_step_remove_book(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Remove a tracked book."""
+
+        entry = self.config_entry
+        books = list(entry.options.get(CONF_BOOKS, []))
+
+        if user_input is not None:
+            book_id = int(user_input["book_id"])
+            books = [book for book in books if book["book_id"] != book_id]
+
+            device_registry = dr.async_get(self.hass)
+            child_device = device_registry.async_get_child_device_by_identifier(
+                (DOMAIN, f"book_{book_id}"), entry.entry_id
+            )
+            if child_device is not None:
+                device_registry.async_remove_device(child_device.id)
+
+            return self.async_create_entry(
+                title="",
+                data={**entry.options, CONF_BOOKS: books},
+            )
+
+        if not books:
+            return await self.async_step_init()
+
+        return self.async_show_form(
+            step_id="remove_book",
+            data_schema=probatio.Schema(
+                {
+                    probatio.Required("book_id"): SelectSelector(
+                        SelectSelectorConfig(
+                            options=[
+                                {
+                                    "value": str(book["book_id"]),
+                                    "label": f"Book {book['book_id']}",
+                                }
+                                for book in books
+                            ],
+                            mode=SelectSelectorMode.DROPDOWN,
+                        )
+                    )
+                }
+            ),
         )
 
 
