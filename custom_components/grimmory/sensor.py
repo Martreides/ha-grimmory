@@ -7,6 +7,7 @@ import logging
 from datetime import timedelta
 from typing import Any
 
+import aiohttp
 from homeassistant.components.sensor import SensorEntity, SensorStateClass
 from homeassistant.const import PERCENTAGE
 from homeassistant.core import HomeAssistant
@@ -180,7 +181,13 @@ class GrimmoryBookReadStatusSensor(SensorEntity):
 
     async def async_update(self) -> None:
         """Fetch the book's read status."""
-        book = await self._client.get_book(self._book_id)
+        try:
+            book = await self._client.get_book(self._book_id)
+        except (aiohttp.ClientError, TimeoutError):
+            self._attr_available = False
+            return
+
+        self._attr_available = True
         self._attr_native_value = book.get("readStatus")
 
         name = _get_book_device_name(book, self._book_id)
@@ -228,7 +235,13 @@ class GrimmoryBookProgressSensor(SensorEntity):
 
     async def async_update(self) -> None:
         """Fetch the book's koreader pogress."""
-        book = await self._client.get_book(self._book_id)
+        try:
+            book = await self._client.get_book(self._book_id)
+        except (aiohttp.ClientError, TimeoutError):
+            self._attr_available = False
+            return
+
+        self._attr_available = True
 
         name = _get_book_device_name(book, self._book_id)
         self._attr_device_info = ChildDeviceInfo(
