@@ -326,7 +326,7 @@ class GrimmoryApiClient:
             libraries = await self.get_libraries()
             for library in libraries:
                 await self._put(
-                    url=f"{self.host}/api/v1/libraries/{library['libraryId']}/refresh",
+                    url=f"{self.host}/api/v1/libraries/{library['id']}/refresh",
                     params={},
                     headers={
                         "Authorization": f"Bearer {self.token}",
