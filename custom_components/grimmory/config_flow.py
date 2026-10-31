@@ -24,7 +24,13 @@ from homeassistant.helpers.selector import (
 )
 
 from .api import GrimmoryApiClient
-from .const import CONF_BOOKS, CONF_LIBRARY_ID, CONF_REFRESH_TOKEN, DOMAIN
+from .const import (
+    CONF_BOOKS,
+    CONF_LIBRARY_ID,
+    CONF_PROGRESS_SOURCE,
+    CONF_REFRESH_TOKEN,
+    DOMAIN,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -63,6 +69,47 @@ async def validate_input(data: dict[str, Any]) -> dict[str, Any]:
         CONF_TOKEN: response_json["accessToken"],
         CONF_REFRESH_TOKEN: response_json["refreshToken"],
     }
+
+
+async def _get_additional_settings_schema(
+    client: GrimmoryApiClient,
+    current_library_id: int | None = None,
+    current_progress_source: str | None = None,
+) -> probatio.Schema:
+    """Build the library and progress source selection schema."""
+
+    libraries = await client.get_libraries()
+    current_library = "all" if current_library_id is None else str(current_library_id)
+
+    return probatio.Schema(
+        {
+            probatio.Required(CONF_LIBRARY_ID, default=current_library): SelectSelector(
+                SelectSelectorConfig(
+                    options=[
+                        {"value": "all", "label": "All libraries"},
+                        *[
+                            {"value": str(library["id"]), "label": library["name"]}
+                            for library in libraries
+                        ],
+                    ],
+                    mode=SelectSelectorMode.DROPDOWN,
+                )
+            ),
+            probatio.Required(
+                CONF_PROGRESS_SOURCE,
+                default=current_progress_source,
+            ): SelectSelector(
+                SelectSelectorConfig(
+                    options=[
+                        {"value": "grimmory", "label": "Grimmory"},
+                        {"value": "koreader", "label": "KOReader"},
+                        {"value": "kobo", "label": "Kobo"},
+                    ],
+                    mode=SelectSelectorMode.DROPDOWN,
+                )
+            ),
+        }
+    )
 
 
 class GrimmoryConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -122,12 +169,14 @@ class GrimmoryConfigFlow(ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             library_id = user_input[CONF_LIBRARY_ID]
+            progress_source = user_input[CONF_PROGRESS_SOURCE]
 
             return self.async_create_entry(
                 title=self._login_data[CONF_HOST],
                 data={
                     **self._login_data,
                     CONF_LIBRARY_ID: (None if library_id == "all" else int(library_id)),
+                    CONF_PROGRESS_SOURCE: progress_source,
                 },
             )
 
@@ -137,7 +186,7 @@ class GrimmoryConfigFlow(ConfigFlow, domain=DOMAIN):
         )
 
         try:
-            data_schema = await self._get_library_schema(client)
+            data_schema = await _get_additional_settings_schema(client)
         except (aiohttp.ClientError, TimeoutError):
             _LOGGER.warning(
                 "Unable to retrieve Grimmory libraries from %s",
@@ -156,21 +205,29 @@ class GrimmoryConfigFlow(ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             library_id = user_input[CONF_LIBRARY_ID]
+            progress_source = user_input[CONF_PROGRESS_SOURCE]
 
             return self.async_update_reload_and_abort(
                 entry=entry,
                 data_updates={
                     CONF_LIBRARY_ID: (None if library_id == "all" else int(library_id)),
+                    CONF_PROGRESS_SOURCE: progress_source,
                 },
             )
 
         client = GrimmoryApiClient(
             host=entry.data[CONF_HOST], token=entry.data[CONF_TOKEN]
         )
-
+        current_progress_source = (
+            "grimmory"
+            if entry.data.get(CONF_PROGRESS_SOURCE) is None
+            else entry.data.get(CONF_PROGRESS_SOURCE)
+        )
         try:
-            data_schema = await self._get_library_schema(
-                client, entry.data.get(CONF_LIBRARY_ID)
+            data_schema = await _get_additional_settings_schema(
+                client,
+                entry.data.get(CONF_LIBRARY_ID),
+                current_progress_source,
             )
         except (aiohttp.ClientError, TimeoutError):
             _LOGGER.warning(
@@ -179,38 +236,6 @@ class GrimmoryConfigFlow(ConfigFlow, domain=DOMAIN):
             return self.async_abort(reason="cannot_connect")
 
         return self.async_show_form(step_id="reconfigure", data_schema=data_schema)
-
-    async def _get_library_schema(
-        self,
-        client: GrimmoryApiClient,
-        current_library_id: int | None = None,
-    ) -> probatio.Schema:
-        """Build the library selection schema."""
-
-        libraries = await client.get_libraries()
-        current_value = "all" if current_library_id is None else str(current_library_id)
-
-        return probatio.Schema(
-            {
-                probatio.Required(
-                    CONF_LIBRARY_ID, default=current_value
-                ): SelectSelector(
-                    SelectSelectorConfig(
-                        options=[
-                            {"value": "all", "label": "All libraries"},
-                            *[
-                                {
-                                    "value": str(library["id"]),
-                                    "label": library["name"],
-                                }
-                                for library in libraries
-                            ],
-                        ],
-                        mode=SelectSelectorMode.DROPDOWN,
-                    )
-                )
-            }
-        )
 
 
 class GrimmoryOptionsFlow(OptionsFlowWithReload):
@@ -224,6 +249,7 @@ class GrimmoryOptionsFlow(OptionsFlowWithReload):
         menu_options = ["add_book"]
         if self.config_entry.options.get(CONF_BOOKS):
             menu_options.append("remove_book")
+        menu_options.append("additional_settings")
 
         return self.async_show_menu(step_id="init", menu_options=menu_options)
 
@@ -323,6 +349,47 @@ class GrimmoryOptionsFlow(OptionsFlowWithReload):
                     )
                 }
             ),
+        )
+
+    async def async_step_additional_settings(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Change the selected library and progress source."""
+
+        entry = self.config_entry
+        client = GrimmoryApiClient(hass=self.hass, entry=entry)
+
+        if user_input is not None:
+            library_id = user_input[CONF_LIBRARY_ID]
+            data = {
+                **entry.data,
+                CONF_LIBRARY_ID: None if library_id == "all" else int(library_id),
+                CONF_PROGRESS_SOURCE: user_input[CONF_PROGRESS_SOURCE],
+            }
+            if data != entry.data:
+                self.hass.config_entries.async_update_entry(entry, data=data)
+                await self.hass.config_entries.async_reload(entry.entry_id)
+
+            return self.async_create_entry(title="", data=entry.options)
+
+        library_id = entry.data.get(CONF_LIBRARY_ID)
+        progress_source = entry.data.get(CONF_PROGRESS_SOURCE) or "grimmory"
+
+        try:
+            data_schema = await _get_additional_settings_schema(
+                client,
+                library_id,
+                progress_source,
+            )
+        except (aiohttp.ClientError, TimeoutError):
+            _LOGGER.warning(
+                "Unable to retrieve Grimmory libraries from %s", entry.data[CONF_HOST]
+            )
+            return self.async_abort(reason="cannot_connect")
+
+        return self.async_show_form(
+            step_id="additional_settings",
+            data_schema=data_schema,
         )
 
 
