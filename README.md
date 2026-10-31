@@ -28,7 +28,7 @@ To change the library later, open the Grimmory config entry menu and choose **Re
 
 ## Track an individual book
 
-Start by clicking **Add book** in the dropdown menu of the Grimmory device, and enter the book's ID. You can find the ID in the book's URL: for example, in `http://192.168.1.17:6060/book/169?tab=view`, the book ID is `169` (the number after `/book/`).
+Open the Grimmory configuration entry, choose **Configure**, then select **Add a book** and enter the book's ID. You can find the ID in the book's URL: for example, in `http://192.168.1.17:6060/book/169?tab=view`, the book ID is `169` (the number after `/book/`).
 
 If you selected a specific library during setup, the book must belong to that library. With **All libraries** selected, books from any library can be added.
 

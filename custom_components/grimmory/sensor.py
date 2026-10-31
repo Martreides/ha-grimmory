@@ -169,7 +169,7 @@ class GrimmoryBookReadStatusSensor(SensorEntity):
         self._attr_unique_id = f"book_{self._book_id}_read_status"
         self._attr_device_info = ChildDeviceInfo(
             identifiers={(DOMAIN, f"book_{self._book_id}")},
-            name=f"Book {self._book_id}",
+            name=_get_book_device_name(book, self._book_id),
             parent_device_id=parent_device_id,
         )
 
@@ -214,7 +214,7 @@ class GrimmoryBookKoreaderProgressSensor(SensorEntity):
         self._attr_unique_id = f"book_{self._book_id}_koreader_progress"
         self._attr_device_info = ChildDeviceInfo(
             identifiers={(DOMAIN, f"book_{self._book_id}")},
-            name=f"Book {self._book_id}",
+            name=_get_book_device_name(book, self._book_id),
             parent_device_id=parent_device_id,
         )
 

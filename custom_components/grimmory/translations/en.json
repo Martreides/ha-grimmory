@@ -40,21 +40,36 @@
       }
     }
   },
-  "config_subentries": {
-    "book": {
-      "entry_type": "Book",
-      "initiate_flow": {
-        "user": "Add book"
-      },
-      "step": {
-        "user": {
-          "title": "Add a book",
-          "description": "Enter the ID of the book you want to track in Grimmory."
+  "options": {
+    "step": {
+      "init": {
+        "title": "Manage books",
+        "description": "Add books to Grimmory or remove books you no longer want to track.",
+        "menu_options": {
+          "add_book": "Add a book",
+          "remove_book": "Remove a book"
         }
       },
-      "error": {
-        "book_not_in_library": "This book is not in the selected library."
+      "add_book": {
+        "title": "Add a book",
+        "description": "Enter the ID of the book you want to track in Grimmory.",
+        "data": {
+          "book_id": "Book ID"
+        }
+      },
+      "remove_book": {
+        "title": "Remove a book",
+        "description": "Choose the book you want to stop tracking.",
+        "data": {
+          "book_id": "Book"
+        }
       }
+    },
+    "error": {
+      "cannot_connect": "Failed to retrieve the book.",
+      "book_not_found": "No book was found with this ID.",
+      "book_not_in_library": "This book is not in the selected library.",
+      "book_already_added": "This book has already been added."
     }
   }
 }
