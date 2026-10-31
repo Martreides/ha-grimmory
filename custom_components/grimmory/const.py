@@ -6,4 +6,5 @@
 DOMAIN = "grimmory"
 CONF_BOOKS = "books"
 CONF_LIBRARY_ID = "library_id"
+CONF_PROGRESS_SOURCE = "progress_source"
 CONF_REFRESH_TOKEN = "refresh_token"

@@ -18,19 +18,21 @@ Requires Home Assistant Core 2026.9 or newer. Grimmory uses child devices for tr
 | Rescan bookdrop folder | Button to ask Grimmory to rescan its bookdrop folder. |
 | Grimmory version | Update entity showing the installed and latest Grimmory versions. |
 | Book read status | A sensor for each tracked book, shown on a child device under Grimmory. |
-| KOReader progress | A sensor for each tracked book showing the reading progress synced through KOReader. |
+| Book read progress | A sensor for each tracked book showing progress from the selected source: Grimmory, KOReader, or Kobo. |
 
 ## Setup
 
-After installing the integration, add Grimmory from **Settings → Devices & services → Add integration**. Enter the base URL of your Grimmory server (don't forget http:// or https://) and your Grimmory username and password. Then choose a specific library or All libraries.
+After installing the integration, add Grimmory from **Settings → Devices & services → Add integration**. Enter the base URL of your Grimmory server (don't forget http:// or https://) and your Grimmory username and password. Then choose a specific library or All libraries, and select the source to use for book reading progress.
 
-To change the library later, open the Grimmory config entry menu and choose **Reconfigure**.
+To change the library or reading progress source later, open the Grimmory config entry, choose **Configure**, then select **Change additional settings**. You can also use **Reconfigure** from the config entry menu.
 
 ## Track an individual book
 
 Open the Grimmory configuration entry, choose **Configure**, then select **Add a book** and enter the book's ID. You can find the ID in the book's URL: for example, in `http://192.168.1.17:6060/book/169?tab=view`, the book ID is `169` (the number after `/book/`).
 
 If you selected a specific library during setup, the book must belong to that library. With **All libraries** selected, books from any library can be added.
+
+To stop tracking a book, open **Configure** and select **Remove a book**.
 
 ## Installation
 

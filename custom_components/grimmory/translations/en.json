@@ -19,10 +19,11 @@
         }
       },
       "library": {
-        "title": "Choose a library",
+        "title": "Additional settings",
         "description": "Select which Grimmory library you want to monitor.",
         "data": {
-          "library_id": "Library"
+          "library_id": "Library",
+          "progress_source": "Source for reading progress."
         },
         "data_description": {
           "library_id": "Choose a specific library or monitor all libraries."
@@ -43,11 +44,12 @@
   "options": {
     "step": {
       "init": {
-        "title": "Manage books",
+        "title": "Manage settings",
         "description": "Add books to Grimmory or remove books you no longer want to track.",
         "menu_options": {
           "add_book": "Add a book",
-          "remove_book": "Remove a book"
+          "remove_book": "Remove a book",
+          "additional_settings": "Change additional settings"
         }
       },
       "add_book": {
@@ -62,6 +64,14 @@
         "description": "Choose the book you want to stop tracking.",
         "data": {
           "book_id": "Book"
+        }
+      },
+      "additional_settings": {
+        "title": "Additional settings",
+        "description": "Choose which library and reading progress source to use.",
+        "data": {
+          "library_id": "Library",
+          "progress_source": "Reading progress source"
         }
       }
     },

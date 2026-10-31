@@ -88,6 +88,6 @@ async def async_migrate_entry(
     return True
 
 
-async def async_unload_entry(hass: HomeAssistant, entry: GrimmoryConfigEntry) -> None:
+async def async_unload_entry(hass: HomeAssistant, entry: GrimmoryConfigEntry) -> bool:
     """Unload a config entry."""
-    await hass.config_entries.async_unload_platforms_or_raise(entry, _PLATFORMS)
+    return await hass.config_entries.async_unload_platforms(entry, _PLATFORMS)

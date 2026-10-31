@@ -16,7 +16,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import GrimmoryConfigEntry
 from .api import GrimmoryApiClient
-from .const import CONF_BOOKS, DOMAIN
+from .const import CONF_BOOKS, CONF_PROGRESS_SOURCE, DOMAIN
 
 SCAN_INTERVAL = timedelta(minutes=5)
 
@@ -60,12 +60,16 @@ async def async_setup_entry(
     if parent_device is None:
         raise RuntimeError("Grimmory parent device not found")
 
+    progress_source = entry.data.get(CONF_PROGRESS_SOURCE)
     for book in entry.options.get(CONF_BOOKS, []):
         async_add_entities(
             [
                 GrimmoryBookReadStatusSensor(client, book, parent_device.id),
-                GrimmoryBookKoreaderProgressSensor(client, book, parent_device.id),
+                GrimmoryBookProgressSensor(
+                    client, book, parent_device.id, progress_source
+                ),
             ],
+            update_before_add=True,
         )
 
 
@@ -165,6 +169,7 @@ class GrimmoryBookReadStatusSensor(SensorEntity):
 
         self._client = client
         self._book_id = book["book_id"]
+        self._parent_device_id = parent_device_id
         self._attr_name = "Read Status"
         self._attr_unique_id = f"book_{self._book_id}_read_status"
         self._attr_device_info = ChildDeviceInfo(
@@ -176,23 +181,23 @@ class GrimmoryBookReadStatusSensor(SensorEntity):
     async def async_update(self) -> None:
         """Fetch the book's read status."""
         book = await self._client.get_book(self._book_id)
-
-        device = self.device_entry
-        if device is None:
-            return
+        self._attr_native_value = book.get("readStatus")
 
         name = _get_book_device_name(book, self._book_id)
-
-        if device.name != name:
+        self._attr_device_info = ChildDeviceInfo(
+            identifiers={(DOMAIN, f"book_{self._book_id}")},
+            name=name,
+            parent_device_id=self._parent_device_id,
+        )
+        device = self.device_entry
+        if device is not None and device.name != name:
             dr.async_get(self.hass).async_update_child_device(
                 device.id,
                 name=name,
             )
 
-        self._attr_native_value = book.get("readStatus")
 
-
-class GrimmoryBookKoreaderProgressSensor(SensorEntity):
+class GrimmoryBookProgressSensor(SensorEntity):
     """Sensor for the Koreader progress of a Grimmory book."""
 
     _attr_has_entity_name = True
@@ -205,13 +210,16 @@ class GrimmoryBookKoreaderProgressSensor(SensorEntity):
         client: GrimmoryApiClient,
         book: dict[str, Any],
         parent_device_id: str,
+        progress_source: str | None,
     ) -> None:
         """Initialize the sensor."""
 
         self._client = client
         self._book_id = book["book_id"]
-        self._attr_name = "Koreader Progress"
-        self._attr_unique_id = f"book_{self._book_id}_koreader_progress"
+        self._parent_device_id = parent_device_id
+        self._progress_source = progress_source
+        self._attr_name = "Read progress"
+        self._attr_unique_id = f"book_{self._book_id}_read_progress"
         self._attr_device_info = ChildDeviceInfo(
             identifiers={(DOMAIN, f"book_{self._book_id}")},
             name=_get_book_device_name(book, self._book_id),
@@ -222,17 +230,25 @@ class GrimmoryBookKoreaderProgressSensor(SensorEntity):
         """Fetch the book's koreader pogress."""
         book = await self._client.get_book(self._book_id)
 
-        device = self.device_entry
-        if device is None:
-            return
-
         name = _get_book_device_name(book, self._book_id)
+        self._attr_device_info = ChildDeviceInfo(
+            identifiers={(DOMAIN, f"book_{self._book_id}")},
+            name=name,
+            parent_device_id=self._parent_device_id,
+        )
+        device = self.device_entry
 
-        if device.name != name:
+        if device is not None and device.name != name:
             dr.async_get(self.hass).async_update_child_device(
                 device.id,
                 name=name,
             )
 
-        progress = book.get("koreaderProgress")
+        if self._progress_source == "koreader":
+            progress = book.get("koreaderProgress")
+        elif self._progress_source == "kobo":
+            progress = book.get("koboProgress")
+        else:
+            progress = book.get("epubProgress")
+
         self._attr_native_value = progress.get("percentage") if progress else None
