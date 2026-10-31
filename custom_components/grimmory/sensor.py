@@ -184,7 +184,7 @@ class GrimmoryBookReadStatusSensor(SensorEntity):
         name = _get_book_device_name(book, self._book_id)
 
         if device.name != name:
-            dr.async_get(self.hass).async_update_device(
+            dr.async_get(self.hass).async_update_child_device(
                 device.id,
                 name=name,
             )
@@ -229,7 +229,7 @@ class GrimmoryBookKoreaderProgressSensor(SensorEntity):
         name = _get_book_device_name(book, self._book_id)
 
         if device.name != name:
-            dr.async_get(self.hass).async_update_device(
+            dr.async_get(self.hass).async_update_child_device(
                 device.id,
                 name=name,
             )
