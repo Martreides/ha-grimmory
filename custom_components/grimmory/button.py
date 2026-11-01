@@ -3,14 +3,20 @@
 # SPDX-License-Identifier: GPL-3.0-only
 """Button platform for Grimmory."""
 
+import logging
+
+import aiohttp
 from homeassistant.components.button import ButtonEntity
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import GrimmoryConfigEntry
 from .api import GrimmoryApiClient
 from .const import DOMAIN
+
+_LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
@@ -49,7 +55,11 @@ class GrimmoryRefreshButton(ButtonEntity):
 
     async def async_press(self) -> None:
         """Refresh the configured Grimmory library or libraries."""
-        await self._client.refresh_libraries()
+        try:
+            await self._client.refresh_libraries()
+        except (aiohttp.ClientError, TimeoutError, ConfigEntryAuthFailed):
+            _LOGGER.warning("Unable to refresh Grimmory libraries")
+            raise HomeAssistantError("Unable to refresh Grimmory libraries") from None
 
 
 class GrimmoryBookdropRescanButton(ButtonEntity):
@@ -71,4 +81,10 @@ class GrimmoryBookdropRescanButton(ButtonEntity):
 
     async def async_press(self) -> None:
         """Request a rescan of the Grimmory bookdrop folder."""
-        await self._client.rescan_bookdrop_folder()
+        try:
+            await self._client.rescan_bookdrop_folder()
+        except (aiohttp.ClientError, TimeoutError, ConfigEntryAuthFailed):
+            _LOGGER.warning("Unable to rescan the Grimmory bookdrop folder")
+            raise HomeAssistantError(
+                "Unable to rescan the Grimmory bookdrop folder"
+            ) from None

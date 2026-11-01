@@ -38,6 +38,13 @@
         "data_description": {
           "library_id": "Choose a specific library or monitor all libraries."
         }
+      },
+      "reauth_confirm": {
+        "title": "Reauthenticate",
+        "description": "Enter your Grimmory password to reconnect.",
+        "data": {
+          "password": "Password"
+        }
       }
     }
   },
