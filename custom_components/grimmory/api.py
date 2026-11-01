@@ -249,24 +249,22 @@ class GrimmoryApiClient:
         if self.host is None or self.token is None:
             raise RuntimeError("Client is not available")
 
+        params = {"page": 0, "size": 1}
+        library_id = self.entry.data[CONF_LIBRARY_ID]
+        if library_id is not None:
+            params["libraryId"] = library_id
+
         books = await self._request(
-            f"{self.host}/api/v1/books",
-            params={
-                "withDescription": "false",
-                "stripForListView": "true",
-            },
+            f"{self.host}/api/v1/app/books",
+            params=params,
             headers={
                 "Authorization": f"Bearer {self.token}",
             },
         )
 
-        _LOGGER.debug("Retrieved %d books from Grimmory API", len(books))
-
-        library_id = self.entry.data[CONF_LIBRARY_ID]
-        if library_id is not None:
-            books = [book for book in books if book["libraryId"] == library_id]
-
-        return len(books)
+        book_count = books["totalElements"]
+        _LOGGER.debug("Retrieved %d books from Grimmory API", book_count)
+        return book_count
 
     async def get_grimmory_version(self):
         """Get the Grimmory version."""
