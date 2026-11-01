@@ -7,7 +7,6 @@ import logging
 from datetime import timedelta
 from typing import Any
 
-import aiohttp
 from homeassistant.components.sensor import SensorEntity, SensorStateClass
 from homeassistant.const import PERCENTAGE
 from homeassistant.core import HomeAssistant
@@ -71,10 +70,9 @@ async def async_setup_entry(
             [
                 GrimmoryBookReadStatusSensor(coordinator, book, parent_device.id),
                 GrimmoryBookProgressSensor(
-                    client, book, parent_device.id, progress_source
+                    coordinator, book, parent_device.id, progress_source
                 ),
             ],
-            update_before_add=True,
         )
 
 
@@ -199,6 +197,11 @@ class GrimmoryBookReadStatusSensor(
             parent_device_id=parent_device_id,
         )
 
+    async def async_added_to_hass(self) -> None:
+        """Register the listener and apply the coordinator's current data."""
+        await super().async_added_to_hass()
+        self._handle_coordinator_update()
+
     def _handle_coordinator_update(self) -> None:
         """Update the book's read status from coordinator data."""
 
@@ -224,7 +227,7 @@ class GrimmoryBookReadStatusSensor(
         super()._handle_coordinator_update()
 
 
-class GrimmoryBookProgressSensor(SensorEntity):
+class GrimmoryBookProgressSensor(CoordinatorEntity[GrimmoryCoordinator], SensorEntity):
     """Sensor for the Koreader progress of a Grimmory book."""
 
     _attr_has_entity_name = True
@@ -234,14 +237,13 @@ class GrimmoryBookProgressSensor(SensorEntity):
 
     def __init__(
         self,
-        client: GrimmoryApiClient,
+        coordinator: GrimmoryCoordinator,
         book: dict[str, Any],
         parent_device_id: str,
         progress_source: str | None,
     ) -> None:
         """Initialize the sensor."""
-
-        self._client = client
+        super().__init__(coordinator)
         self._book_id = book["book_id"]
         self._parent_device_id = parent_device_id
         self._progress_source = progress_source
@@ -253,35 +255,38 @@ class GrimmoryBookProgressSensor(SensorEntity):
             parent_device_id=parent_device_id,
         )
 
-    async def async_update(self) -> None:
+    async def async_added_to_hass(self) -> None:
+        """Register the listener and apply the coordinator's current data."""
+        await super().async_added_to_hass()
+        self._handle_coordinator_update()
+
+    def _handle_coordinator_update(self) -> None:
         """Fetch the book's koreader pogress."""
-        try:
-            book = await self._client.get_book(self._book_id)
-        except (aiohttp.ClientError, ConfigEntryAuthFailed, TimeoutError):
-            self._attr_available = False
-            return
+        book = self.coordinator.data.get(self._book_id)
+        self._attr_available = book is not None
 
-        self._attr_available = True
-
-        name = _get_book_device_name(book, self._book_id)
-        self._attr_device_info = ChildDeviceInfo(
-            identifiers={(DOMAIN, f"book_{self._book_id}")},
-            name=name,
-            parent_device_id=self._parent_device_id,
-        )
-        device = self.device_entry
-
-        if device is not None and device.name != name:
-            dr.async_get(self.hass).async_update_child_device(
-                device.id,
+        if book is not None:
+            name = _get_book_device_name(book, self._book_id)
+            self._attr_device_info = ChildDeviceInfo(
+                identifiers={(DOMAIN, f"book_{self._book_id}")},
                 name=name,
+                parent_device_id=self._parent_device_id,
             )
+            device = self.device_entry
 
-        if self._progress_source == "koreader":
-            progress = book.get("koreaderProgress")
-        elif self._progress_source == "kobo":
-            progress = book.get("koboProgress")
-        else:
-            progress = book.get("epubProgress")
+            if device is not None and device.name != name:
+                dr.async_get(self.hass).async_update_child_device(
+                    device.id,
+                    name=name,
+                )
 
-        self._attr_native_value = progress.get("percentage") if progress else None
+            if self._progress_source == "koreader":
+                progress = book.get("koreaderProgress")
+            elif self._progress_source == "kobo":
+                progress = book.get("koboProgress")
+            else:
+                progress = book.get("epubProgress")
+
+            self._attr_native_value = progress.get("percentage") if progress else None
+
+        super()._handle_coordinator_update()
