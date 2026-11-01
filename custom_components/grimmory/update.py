@@ -7,11 +7,12 @@ import logging
 
 from homeassistant.components.update import UpdateEntity
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import GrimmoryConfigEntry
-from .api import GrimmoryApiClient
+from .api import GrimmoryApiClient, GrimmoryRateLimitedError
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
@@ -55,7 +56,12 @@ class GrimmoryUpdateEntity(UpdateEntity):
 
     async def async_update(self) -> None:
         """Fetch the latest version information."""
-        version_info = await self._client.get_grimmory_version()
+        try:
+            version_info = await self._client.get_grimmory_version()
+        except (GrimmoryRateLimitedError, ConfigEntryAuthFailed):
+            self._attr_available = False
+            return
 
+        self._attr_available = True
         self._attr_installed_version = version_info["current"]
         self._attr_latest_version = version_info["latest"]

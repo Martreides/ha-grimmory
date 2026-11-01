@@ -5,6 +5,7 @@
 """Config flow for the grimmory integration."""
 
 import logging
+from collections.abc import Mapping
 from typing import Any, override
 
 import aiohttp
@@ -215,9 +216,7 @@ class GrimmoryConfigFlow(ConfigFlow, domain=DOMAIN):
                 },
             )
 
-        client = GrimmoryApiClient(
-            host=entry.data[CONF_HOST], token=entry.data[CONF_TOKEN]
-        )
+        client = GrimmoryApiClient(hass=self.hass, entry=entry)
         current_progress_source = (
             "grimmory"
             if entry.data.get(CONF_PROGRESS_SOURCE) is None
@@ -236,6 +235,49 @@ class GrimmoryConfigFlow(ConfigFlow, domain=DOMAIN):
             return self.async_abort(reason="cannot_connect")
 
         return self.async_show_form(step_id="reconfigure", data_schema=data_schema)
+
+    async def async_step_reauth(
+        self, entry_data: Mapping[str, Any]
+    ) -> ConfigFlowResult:
+        """Handle reauthentication."""
+        return await self.async_step_reauth_confirm()
+
+    async def async_step_reauth_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Ask the user to reauthenticate."""
+
+        # Using the protected method below is standard practice.
+        reauth_entry = self._get_reauth_entry()  # pylint: disable=protected-access
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            try:
+                api_data = await validate_input(
+                    {
+                        CONF_HOST: reauth_entry.data[CONF_HOST],
+                        CONF_USERNAME: reauth_entry.data[CONF_USERNAME],
+                        CONF_PASSWORD: user_input[CONF_PASSWORD],
+                    }
+                )
+            except CannotConnect:
+                errors["base"] = "cannot_connect"
+            except InvalidAuth:
+                errors["base"] = "invalid_auth"
+            except Exception:
+                _LOGGER.exception("Unexpected error during reauthentication")
+                errors["base"] = "unknown"
+            else:
+                return self.async_update_reload_and_abort(
+                    reauth_entry,
+                    data_updates=api_data,
+                )
+
+        return self.async_show_form(
+            step_id="reauth_confirm",
+            data_schema=probatio.Schema({probatio.Required(CONF_PASSWORD): str}),
+            errors=errors,
+        )
 
 
 class GrimmoryOptionsFlow(OptionsFlowWithReload):

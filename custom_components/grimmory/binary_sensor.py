@@ -8,11 +8,12 @@ from datetime import timedelta
 
 from homeassistant.components.binary_sensor import BinarySensorEntity
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import GrimmoryConfigEntry
-from .api import GrimmoryApiClient
+from .api import GrimmoryApiClient, GrimmoryRateLimitedError
 from .const import DOMAIN
 
 SCAN_INTERVAL = timedelta(minutes=5)
@@ -56,4 +57,9 @@ class GrimmoryKoboSyncEnabledSensor(BinarySensorEntity):
 
     async def async_update(self) -> None:
         """Fetch Kobo sync status."""
-        self._attr_is_on = await self._client.get_kobo_sync_status()
+        try:
+            self._attr_is_on = await self._client.get_kobo_sync_status()
+        except (GrimmoryRateLimitedError, ConfigEntryAuthFailed):
+            self._attr_available = False
+            return
+        self._attr_available = True
