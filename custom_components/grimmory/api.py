@@ -117,7 +117,6 @@ class GrimmoryApiClient:
                     json={"refreshToken": self.refresh_token},
                 ) as response,
             ):
-                _LOGGER.debug(response)
                 if response.status == 429:
                     self._refresh_retry_after = (
                         asyncio.get_running_loop().time() + _TOKEN_REFRESH_COOLDOWN
