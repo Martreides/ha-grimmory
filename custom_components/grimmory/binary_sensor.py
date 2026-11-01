@@ -28,7 +28,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up the Grimmory binary sensor platform."""
 
-    client = entry.runtime_data
+    client = entry.runtime_data.client
 
     sensors = [
         GrimmoryKoboSyncEnabledSensor(client),

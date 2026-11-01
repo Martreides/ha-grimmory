@@ -25,7 +25,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up the Grimmory sensor platform."""
 
-    client = entry.runtime_data
+    client = entry.runtime_data.client
 
     _LOGGER.debug("Setting up Grimmory update entity")
 

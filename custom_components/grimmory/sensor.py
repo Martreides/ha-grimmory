@@ -15,10 +15,12 @@ from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.device_registry import ChildDeviceInfo, DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import GrimmoryConfigEntry
 from .api import GrimmoryApiClient, GrimmoryRateLimitedError
 from .const import CONF_BOOKS, CONF_PROGRESS_SOURCE, DOMAIN
+from .coordinator import GrimmoryCoordinator
 
 SCAN_INTERVAL = timedelta(minutes=5)
 
@@ -42,7 +44,8 @@ async def async_setup_entry(
 ) -> None:
     """Set up the Grimmory sensor platform."""
 
-    client = entry.runtime_data
+    client = entry.runtime_data.client
+    coordinator = entry.runtime_data.coordinator
 
     sensors = [
         GrimmoryBookCountSensor(client),
@@ -66,7 +69,7 @@ async def async_setup_entry(
     for book in entry.options.get(CONF_BOOKS, []):
         async_add_entities(
             [
-                GrimmoryBookReadStatusSensor(client, book, parent_device.id),
+                GrimmoryBookReadStatusSensor(coordinator, book, parent_device.id),
                 GrimmoryBookProgressSensor(
                     client, book, parent_device.id, progress_source
                 ),
@@ -170,7 +173,9 @@ class GrimmoryLastReadSensor(SensorEntity):
         }
 
 
-class GrimmoryBookReadStatusSensor(SensorEntity):
+class GrimmoryBookReadStatusSensor(
+    CoordinatorEntity[GrimmoryCoordinator], SensorEntity
+):
     """Sensor for the read status of a Grimmory book."""
 
     _attr_has_entity_name = True
@@ -178,13 +183,12 @@ class GrimmoryBookReadStatusSensor(SensorEntity):
 
     def __init__(
         self,
-        client: GrimmoryApiClient,
+        coordinator: GrimmoryCoordinator,
         book: dict[str, Any],
         parent_device_id: str,
     ) -> None:
         """Initialize the sensor."""
-
-        self._client = client
+        super().__init__(coordinator)
         self._book_id = book["book_id"]
         self._parent_device_id = parent_device_id
         self._attr_name = "Read Status"
@@ -195,29 +199,29 @@ class GrimmoryBookReadStatusSensor(SensorEntity):
             parent_device_id=parent_device_id,
         )
 
-    async def async_update(self) -> None:
-        """Fetch the book's read status."""
-        try:
-            book = await self._client.get_book(self._book_id)
-        except (aiohttp.ClientError, ConfigEntryAuthFailed, TimeoutError):
-            self._attr_available = False
-            return
+    def _handle_coordinator_update(self) -> None:
+        """Update the book's read status from coordinator data."""
 
-        self._attr_available = True
-        self._attr_native_value = book.get("readStatus")
+        book = self.coordinator.data.get(self._book_id)
+        self._attr_available = book is not None
 
-        name = _get_book_device_name(book, self._book_id)
-        self._attr_device_info = ChildDeviceInfo(
-            identifiers={(DOMAIN, f"book_{self._book_id}")},
-            name=name,
-            parent_device_id=self._parent_device_id,
-        )
-        device = self.device_entry
-        if device is not None and device.name != name:
-            dr.async_get(self.hass).async_update_child_device(
-                device.id,
+        if book is not None:
+            self._attr_native_value = book.get("readStatus")
+
+            name = _get_book_device_name(book, self._book_id)
+            self._attr_device_info = ChildDeviceInfo(
+                identifiers={(DOMAIN, f"book_{self._book_id}")},
                 name=name,
+                parent_device_id=self._parent_device_id,
             )
+            device = self.device_entry
+            if device is not None and device.name != name:
+                dr.async_get(self.hass).async_update_child_device(
+                    device.id,
+                    name=name,
+                )
+
+        super()._handle_coordinator_update()
 
 
 class GrimmoryBookProgressSensor(SensorEntity):

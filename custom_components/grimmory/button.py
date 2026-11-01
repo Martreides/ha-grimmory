@@ -26,7 +26,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up the Grimmory button platform."""
 
-    client = entry.runtime_data
+    client = entry.runtime_data.client
 
     buttons = [
         GrimmoryRefreshButton(client),
