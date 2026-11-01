@@ -4,6 +4,7 @@
 """The grimmory integration."""
 
 import logging
+from dataclasses import dataclass
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
@@ -12,6 +13,7 @@ from homeassistant.helpers import device_registry as dr
 
 from .api import GrimmoryApiClient
 from .const import CONF_BOOKS, DOMAIN
+from .coordinator import GrimmoryCoordinator
 
 _PLATFORMS: list[Platform] = [
     Platform.SENSOR,
@@ -20,9 +22,17 @@ _PLATFORMS: list[Platform] = [
     Platform.BUTTON,
 ]
 
-type GrimmoryConfigEntry = ConfigEntry[GrimmoryApiClient]
+type GrimmoryConfigEntry = ConfigEntry[GrimmoryRuntimeData]
 
 _LOGGER = logging.getLogger(__name__)
+
+
+@dataclass
+class GrimmoryRuntimeData:
+    """Runtime data for the Grimmory integration."""
+
+    client: GrimmoryApiClient
+    coordinator: GrimmoryCoordinator
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: GrimmoryConfigEntry) -> bool:
@@ -30,7 +40,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: GrimmoryConfigEntry) -> 
 
     client = GrimmoryApiClient(hass, entry)
 
-    entry.runtime_data = client
+    coordinator = GrimmoryCoordinator(hass, entry, client)
+    await coordinator.async_config_entry_first_refresh()
+
+    entry.runtime_data = GrimmoryRuntimeData(
+        client=client,
+        coordinator=coordinator,
+    )
     _LOGGER.debug("Grimmory API client initialized")
 
     device_registry = dr.async_get(hass)
