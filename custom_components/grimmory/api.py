@@ -11,10 +11,16 @@ import aiohttp
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_TOKEN, CONF_USERNAME
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryAuthFailed
 
 from .const import CONF_LIBRARY_ID, CONF_REFRESH_TOKEN
 
 _LOGGER = logging.getLogger(__name__)
+_TOKEN_REFRESH_COOLDOWN = 60 * 15
+
+
+class GrimmoryRateLimitedError(aiohttp.ClientError):
+    """Raised when Grimmory rate limits token refreshes."""
 
 
 class GrimmoryApiClient:
@@ -41,6 +47,8 @@ class GrimmoryApiClient:
             self.refresh_token = None
 
         self._refresh_lock = asyncio.Lock()
+        self._refresh_failed = False
+        self._refresh_retry_after = 0.0
 
     @staticmethod
     async def login(data: dict[str, Any]) -> dict[str, Any]:
@@ -72,18 +80,36 @@ class GrimmoryApiClient:
 
         return response_json
 
+    def _start_reauth(self) -> None:
+        """Start reauthentication once the API rejects the refreshed token."""
+        if self._refresh_failed:
+            return
+
+        self._refresh_failed = True
+        if self.entry is not None and self.hass is not None:
+            self.entry.async_start_reauth(self.hass)
+
     async def _refresh_token(self, token_used: str | None) -> bool:
         """Refresh the access token."""
 
         if self.refresh_token is None:
-            raise RuntimeError("Token refresh is unavailable")
+            raise ConfigEntryAuthFailed("Grimmory refresh token is unavailable")
 
-        _LOGGER.debug("Refreshing access token for Grimmory API at %s", self.host)
         async with self._refresh_lock:
+            if self._refresh_failed:
+                raise ConfigEntryAuthFailed("Grimmory authentication failed")
+
             if token_used != self.token:
                 _LOGGER.debug("Access token already refreshed, stopping refresh")
                 return True
+            if asyncio.get_running_loop().time() < self._refresh_retry_after:
+                _LOGGER.debug(
+                    "Token refresh for Grimmory API at %s is rate limited; retrying later",
+                    self.host,
+                )
+                raise GrimmoryRateLimitedError("Grimmory refresh is rate limited")
 
+            _LOGGER.debug("Refreshing access token for Grimmory API at %s", self.host)
             async with (
                 aiohttp.ClientSession() as session,
                 session.post(
@@ -91,6 +117,21 @@ class GrimmoryApiClient:
                     json={"refreshToken": self.refresh_token},
                 ) as response,
             ):
+                if response.status == 429:
+                    self._refresh_retry_after = (
+                        asyncio.get_running_loop().time() + _TOKEN_REFRESH_COOLDOWN
+                    )
+                    _LOGGER.warning(
+                        "Grimmory API at %s rate limited token refresh; retrying in %s minutes",
+                        self.host,
+                        _TOKEN_REFRESH_COOLDOWN // 60,
+                    )
+                    raise GrimmoryRateLimitedError("Grimmory refresh is rate limited")
+
+                if response.status == 401:
+                    self._start_reauth()
+                    raise ConfigEntryAuthFailed("Grimmory refresh token is invalid")
+
                 if response.status != 200:
                     error_text = await response.text()
                     _LOGGER.error(
@@ -98,6 +139,7 @@ class GrimmoryApiClient:
                         response.status,
                         error_text,
                     )
+
                     response.raise_for_status()
 
                 data = await response.json()
@@ -137,6 +179,9 @@ class GrimmoryApiClient:
                     },
                     retry=False,
                 )
+            if response.status == 401:
+                self._start_reauth()
+                raise ConfigEntryAuthFailed("Grimmory access token is invalid")
 
             response.raise_for_status()
             return await response.json()
@@ -161,6 +206,9 @@ class GrimmoryApiClient:
                     },
                     retry=False,
                 )
+            if response.status == 401:
+                self._start_reauth()
+                raise ConfigEntryAuthFailed("Grimmory access token is invalid")
 
             response.raise_for_status()
 
@@ -184,6 +232,9 @@ class GrimmoryApiClient:
                     },
                     retry=False,
                 )
+            if response.status == 401:
+                self._start_reauth()
+                raise ConfigEntryAuthFailed("Grimmory access token is invalid")
 
             response.raise_for_status()
 

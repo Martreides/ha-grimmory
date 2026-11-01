@@ -11,12 +11,13 @@ import aiohttp
 from homeassistant.components.sensor import SensorEntity, SensorStateClass
 from homeassistant.const import PERCENTAGE
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.device_registry import ChildDeviceInfo, DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import GrimmoryConfigEntry
-from .api import GrimmoryApiClient
+from .api import GrimmoryApiClient, GrimmoryRateLimitedError
 from .const import CONF_BOOKS, CONF_PROGRESS_SOURCE, DOMAIN
 
 SCAN_INTERVAL = timedelta(minutes=5)
@@ -93,7 +94,12 @@ class GrimmoryBookCountSensor(SensorEntity):
 
     async def async_update(self) -> None:
         """Fetch number of books."""
-        self._attr_native_value = await self._client.get_book_count()
+        try:
+            self._attr_native_value = await self._client.get_book_count()
+        except (GrimmoryRateLimitedError, ConfigEntryAuthFailed):
+            self._attr_available = False
+            return
+        self._attr_available = True
 
 
 class GrimmoryBookdropPendingReviewSensor(SensorEntity):
@@ -115,7 +121,12 @@ class GrimmoryBookdropPendingReviewSensor(SensorEntity):
 
     async def async_update(self) -> None:
         """Fetch the number of bookdrop files pending review."""
-        files = await self._client.get_bookdrop_files_by_status("PENDING_REVIEW")
+        try:
+            files = await self._client.get_bookdrop_files_by_status("PENDING_REVIEW")
+        except (GrimmoryRateLimitedError, ConfigEntryAuthFailed):
+            self._attr_available = False
+            return
+        self._attr_available = True
         self._attr_native_value = files["page"]["totalElements"]
 
 
@@ -138,7 +149,12 @@ class GrimmoryLastReadSensor(SensorEntity):
 
     async def async_update(self) -> None:
         """Fetch last read book."""
-        book = await self._client.get_last_read_book()
+        try:
+            book = await self._client.get_last_read_book()
+        except (GrimmoryRateLimitedError, ConfigEntryAuthFailed):
+            self._attr_available = False
+            return
+        self._attr_available = True
 
         if book is None:
             self._attr_native_value = None
@@ -183,7 +199,7 @@ class GrimmoryBookReadStatusSensor(SensorEntity):
         """Fetch the book's read status."""
         try:
             book = await self._client.get_book(self._book_id)
-        except (aiohttp.ClientError, TimeoutError):
+        except (aiohttp.ClientError, ConfigEntryAuthFailed, TimeoutError):
             self._attr_available = False
             return
 
@@ -237,7 +253,7 @@ class GrimmoryBookProgressSensor(SensorEntity):
         """Fetch the book's koreader pogress."""
         try:
             book = await self._client.get_book(self._book_id)
-        except (aiohttp.ClientError, TimeoutError):
+        except (aiohttp.ClientError, ConfigEntryAuthFailed, TimeoutError):
             self._attr_available = False
             return
 
