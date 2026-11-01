@@ -33,7 +33,8 @@
         "title": "Choose a library",
         "description": "Select which Grimmory library you want to monitor.",
         "data": {
-          "library_id": "Library"
+          "library_id": "Library",
+          "progress_source": "Reading progress source"
         },
         "data_description": {
           "library_id": "Choose a specific library or monitor all libraries."

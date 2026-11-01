@@ -216,9 +216,7 @@ class GrimmoryConfigFlow(ConfigFlow, domain=DOMAIN):
                 },
             )
 
-        client = GrimmoryApiClient(
-            host=entry.data[CONF_HOST], token=entry.data[CONF_TOKEN]
-        )
+        client = GrimmoryApiClient(hass=self.hass, entry=entry)
         current_progress_source = (
             "grimmory"
             if entry.data.get(CONF_PROGRESS_SOURCE) is None
