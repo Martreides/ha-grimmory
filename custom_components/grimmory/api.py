@@ -338,9 +338,10 @@ class GrimmoryApiClient:
             },
         )
 
-        _LOGGER.debug("Retrieved last read book: %s", last_read["content"][0]["title"])
-
         books = last_read.get("content", [])
+        if books:
+            _LOGGER.debug("Retrieved last read book: %s", books[0].get("title"))
+
         return books[0] if books else None
 
     async def get_libraries(self):
