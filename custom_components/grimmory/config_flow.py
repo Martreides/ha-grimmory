@@ -360,7 +360,7 @@ class GrimmoryOptionsFlow(OptionsFlowWithReload):
 
             device_registry = dr.async_get(self.hass)
             child_device = device_registry.async_get_child_device_by_identifier(
-                (DOMAIN, f"book_{book_id}"), entry.entry_id
+                (DOMAIN, f"{entry.entry_id}_book_{book_id}"), entry.entry_id
             )
             if child_device is not None:
                 device_registry.async_remove_device(child_device.id)

@@ -29,8 +29,8 @@ async def async_setup_entry(
     client = entry.runtime_data.client
 
     buttons = [
-        GrimmoryRefreshButton(client),
-        GrimmoryBookdropRescanButton(client),
+        GrimmoryRefreshButton(client, entry.entry_id),
+        GrimmoryBookdropRescanButton(client, entry.entry_id),
     ]
 
     async_add_entities(buttons)
@@ -42,16 +42,16 @@ class GrimmoryRefreshButton(ButtonEntity):
     _attr_has_entity_name = True
     _attr_name = "Refresh libraries"
     _attr_icon = "mdi:archive-refresh-outline"
-    _attr_device_info = DeviceInfo(
-        identifiers={(DOMAIN, "grimmory")},
-        name="Grimmory",
-        manufacturer="Grimmory",
-    )
 
-    def __init__(self, client: GrimmoryApiClient) -> None:
+    def __init__(self, client: GrimmoryApiClient, entry_id: str) -> None:
         """Initialize the button."""
         self._client = client
-        self._attr_unique_id = f"{client.entry.entry_id}_refresh_libraries"
+        self._attr_unique_id = f"{entry_id}_refresh_libraries"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, entry_id)},
+            name="Grimmory",
+            manufacturer="Grimmory",
+        )
 
     async def async_press(self) -> None:
         """Refresh the configured Grimmory library or libraries."""
@@ -68,16 +68,16 @@ class GrimmoryBookdropRescanButton(ButtonEntity):
     _attr_has_entity_name = True
     _attr_name = "Rescan bookdrop folder"
     _attr_icon = "mdi:folder-sync-outline"
-    _attr_device_info = DeviceInfo(
-        identifiers={(DOMAIN, "grimmory")},
-        name="Grimmory",
-        manufacturer="Grimmory",
-    )
 
-    def __init__(self, client: GrimmoryApiClient) -> None:
+    def __init__(self, client: GrimmoryApiClient, entry_id: str) -> None:
         """Initialize the button."""
         self._client = client
-        self._attr_unique_id = f"{client.entry.entry_id}_bookdrop_rescan"
+        self._attr_unique_id = f"{entry_id}_bookdrop_rescan"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, entry_id)},
+            name="Grimmory",
+            manufacturer="Grimmory",
+        )
 
     async def async_press(self) -> None:
         """Request a rescan of the Grimmory bookdrop folder."""

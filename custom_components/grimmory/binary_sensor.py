@@ -33,7 +33,7 @@ async def async_setup_entry(
     client = entry.runtime_data.client
 
     sensors = [
-        GrimmoryKoboSyncEnabledSensor(client),
+        GrimmoryKoboSyncEnabledSensor(client, entry.entry_id),
     ]
     _LOGGER.debug("Setting up Grimmory sensors: %s", sensors)
 
@@ -46,16 +46,16 @@ class GrimmoryKoboSyncEnabledSensor(BinarySensorEntity):
     _attr_has_entity_name = True
     _attr_name = "Kobo Sync Enabled"
     _attr_icon = "mdi:book-sync-outline"
-    _attr_device_info = DeviceInfo(
-        identifiers={(DOMAIN, "grimmory")},
-        name="Grimmory",
-        manufacturer="Grimmory",
-    )
 
-    def __init__(self, client: GrimmoryApiClient) -> None:
+    def __init__(self, client: GrimmoryApiClient, entry_id: str) -> None:
         """Initialize the sensor."""
         self._client = client
-        self._attr_unique_id = f"{client.entry.entry_id}_kobo_sync_enabled"
+        self._attr_unique_id = f"{entry_id}_kobo_sync_enabled"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, entry_id)},
+            name="Grimmory",
+            manufacturer="Grimmory",
+        )
 
     async def async_update(self) -> None:
         """Fetch Kobo sync status."""
