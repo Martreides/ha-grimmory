@@ -7,6 +7,8 @@ import logging
 from datetime import timedelta
 from typing import Any
 
+import aiohttp
+
 from homeassistant.components.sensor import SensorEntity, SensorStateClass
 from homeassistant.const import PERCENTAGE
 from homeassistant.core import HomeAssistant
@@ -17,7 +19,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import GrimmoryConfigEntry
-from .api import GrimmoryApiClient, GrimmoryRateLimitedError
+from .api import GrimmoryApiClient
 from .const import CONF_BOOKS, CONF_PROGRESS_SOURCE, DOMAIN
 from .coordinator import GrimmoryCoordinator
 
@@ -97,7 +99,7 @@ class GrimmoryBookCountSensor(SensorEntity):
         """Fetch number of books."""
         try:
             self._attr_native_value = await self._client.get_book_count()
-        except (GrimmoryRateLimitedError, ConfigEntryAuthFailed):
+        except (aiohttp.ClientError, TimeoutError, ConfigEntryAuthFailed):
             self._attr_available = False
             return
         self._attr_available = True
@@ -124,7 +126,7 @@ class GrimmoryBookdropPendingReviewSensor(SensorEntity):
         """Fetch the number of bookdrop files pending review."""
         try:
             files = await self._client.get_bookdrop_files_by_status("PENDING_REVIEW")
-        except (GrimmoryRateLimitedError, ConfigEntryAuthFailed):
+        except (aiohttp.ClientError, TimeoutError, ConfigEntryAuthFailed):
             self._attr_available = False
             return
         self._attr_available = True
@@ -152,7 +154,7 @@ class GrimmoryLastReadSensor(SensorEntity):
         """Fetch last read book."""
         try:
             book = await self._client.get_last_read_book()
-        except (GrimmoryRateLimitedError, ConfigEntryAuthFailed):
+        except (aiohttp.ClientError, TimeoutError, ConfigEntryAuthFailed):
             self._attr_available = False
             return
         self._attr_available = True

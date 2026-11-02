@@ -5,6 +5,8 @@
 
 import logging
 
+import aiohttp
+
 from homeassistant.components.update import UpdateEntity
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
@@ -12,7 +14,7 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import GrimmoryConfigEntry
-from .api import GrimmoryApiClient, GrimmoryRateLimitedError
+from .api import GrimmoryApiClient
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
@@ -58,7 +60,7 @@ class GrimmoryUpdateEntity(UpdateEntity):
         """Fetch the latest version information."""
         try:
             version_info = await self._client.get_grimmory_version()
-        except (GrimmoryRateLimitedError, ConfigEntryAuthFailed):
+        except (aiohttp.ClientError, TimeoutError, ConfigEntryAuthFailed):
             self._attr_available = False
             return
 
