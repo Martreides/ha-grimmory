@@ -33,7 +33,7 @@ async def async_setup_entry(
 
     async_add_entities(
         [
-            GrimmoryUpdateEntity(client),
+            GrimmoryUpdateEntity(client, entry.entry_id),
         ],
         update_before_add=True,
     )
@@ -45,16 +45,16 @@ class GrimmoryUpdateEntity(UpdateEntity):
     _attr_has_entity_name = True
     _attr_name = "Grimmory"
     _attr_icon = "mdi:package-up"
-    _attr_device_info = DeviceInfo(
-        identifiers={(DOMAIN, "grimmory")},
-        name="Grimmory",
-        manufacturer="Grimmory",
-    )
 
-    def __init__(self, client: GrimmoryApiClient) -> None:
+    def __init__(self, client: GrimmoryApiClient, entry_id: str) -> None:
         """Initialize the update entity."""
         self._client = client
-        self._attr_unique_id = f"{client.entry.entry_id}_version"
+        self._attr_unique_id = f"{entry_id}_version"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, entry_id)},
+            name="Grimmory",
+            manufacturer="Grimmory",
+        )
 
     async def async_update(self) -> None:
         """Fetch the latest version information."""

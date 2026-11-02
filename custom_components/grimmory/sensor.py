@@ -49,9 +49,9 @@ async def async_setup_entry(
     coordinator = entry.runtime_data.coordinator
 
     sensors = [
-        GrimmoryBookCountSensor(client),
-        GrimmoryBookdropPendingReviewSensor(client),
-        GrimmoryLastReadSensor(client),
+        GrimmoryBookCountSensor(client, entry.entry_id),
+        GrimmoryBookdropPendingReviewSensor(client, entry.entry_id),
+        GrimmoryLastReadSensor(client, entry.entry_id),
     ]
     _LOGGER.debug("Setting up Grimmory sensors: %s", sensors)
 
@@ -59,7 +59,7 @@ async def async_setup_entry(
 
     device_registry = dr.async_get(hass)
     parent_device = device_registry.async_get_device_by_identifier(
-        (DOMAIN, "grimmory"),
+        (DOMAIN, entry.entry_id),
         entry.entry_id,
     )
 
@@ -70,9 +70,11 @@ async def async_setup_entry(
     for book in entry.options.get(CONF_BOOKS, []):
         async_add_entities(
             [
-                GrimmoryBookReadStatusSensor(coordinator, book, parent_device.id),
+                GrimmoryBookReadStatusSensor(
+                    coordinator, book, parent_device.id, entry.entry_id
+                ),
                 GrimmoryBookProgressSensor(
-                    coordinator, book, parent_device.id, progress_source
+                    coordinator, book, parent_device.id, progress_source, entry.entry_id
                 ),
             ],
         )
@@ -84,16 +86,16 @@ class GrimmoryBookCountSensor(SensorEntity):
     _attr_has_entity_name = True
     _attr_name = "Book count"
     _attr_icon = "mdi:bookshelf"
-    _attr_device_info = DeviceInfo(
-        identifiers={(DOMAIN, "grimmory")},
-        name="Grimmory",
-        manufacturer="Grimmory",
-    )
 
-    def __init__(self, client: GrimmoryApiClient) -> None:
+    def __init__(self, client: GrimmoryApiClient, entry_id: str) -> None:
         """Initialize the sensor."""
         self._client = client
-        self._attr_unique_id = f"{client.entry.entry_id}_book_count"
+        self._attr_unique_id = f"{entry_id}_book_count"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, entry_id)},
+            name="Grimmory",
+            manufacturer="Grimmory",
+        )
 
     async def async_update(self) -> None:
         """Fetch number of books."""
@@ -111,16 +113,16 @@ class GrimmoryBookdropPendingReviewSensor(SensorEntity):
     _attr_has_entity_name = True
     _attr_name = "Bookdrop files pending review"
     _attr_icon = "mdi:book-alert-outline"
-    _attr_device_info = DeviceInfo(
-        identifiers={(DOMAIN, "grimmory")},
-        name="Grimmory",
-        manufacturer="Grimmory",
-    )
 
-    def __init__(self, client: GrimmoryApiClient) -> None:
+    def __init__(self, client: GrimmoryApiClient, entry_id: str) -> None:
         """Initialize the sensor."""
         self._client = client
-        self._attr_unique_id = f"{client.entry.entry_id}_bookdrop_pending_review"
+        self._attr_unique_id = f"{entry_id}_bookdrop_pending_review"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, entry_id)},
+            name="Grimmory",
+            manufacturer="Grimmory",
+        )
 
     async def async_update(self) -> None:
         """Fetch the number of bookdrop files pending review."""
@@ -139,16 +141,16 @@ class GrimmoryLastReadSensor(SensorEntity):
     _attr_has_entity_name = True
     _attr_name = "Last read book"
     _attr_icon = "mdi:book-clock-outline"
-    _attr_device_info = DeviceInfo(
-        identifiers={(DOMAIN, "grimmory")},
-        name="Grimmory",
-        manufacturer="Grimmory",
-    )
 
-    def __init__(self, client: GrimmoryApiClient) -> None:
+    def __init__(self, client: GrimmoryApiClient, entry_id: str) -> None:
         """Initialize the sensor."""
         self._client = client
-        self._attr_unique_id = f"{client.entry.entry_id}_last_read_book"
+        self._attr_unique_id = f"{entry_id}_last_read_book"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, entry_id)},
+            name="Grimmory",
+            manufacturer="Grimmory",
+        )
 
     async def async_update(self) -> None:
         """Fetch last read book."""
@@ -186,15 +188,17 @@ class GrimmoryBookReadStatusSensor(
         coordinator: GrimmoryCoordinator,
         book: dict[str, Any],
         parent_device_id: str,
+        entry_id: str,
     ) -> None:
         """Initialize the sensor."""
         super().__init__(coordinator)
         self._book_id = book["book_id"]
         self._parent_device_id = parent_device_id
+        self._entry_id = entry_id
         self._attr_name = "Read Status"
-        self._attr_unique_id = f"book_{self._book_id}_read_status"
+        self._attr_unique_id = f"{self._entry_id}_book_{self._book_id}_read_status"
         self._attr_device_info = ChildDeviceInfo(
-            identifiers={(DOMAIN, f"book_{self._book_id}")},
+            identifiers={(DOMAIN, f"{self._entry_id}_book_{self._book_id}")},
             name=_get_book_device_name(book, self._book_id),
             parent_device_id=parent_device_id,
         )
@@ -215,7 +219,7 @@ class GrimmoryBookReadStatusSensor(
 
             name = _get_book_device_name(book, self._book_id)
             self._attr_device_info = ChildDeviceInfo(
-                identifiers={(DOMAIN, f"book_{self._book_id}")},
+                identifiers={(DOMAIN, f"{self._entry_id}_book_{self._book_id}")},
                 name=name,
                 parent_device_id=self._parent_device_id,
             )
@@ -243,16 +247,18 @@ class GrimmoryBookProgressSensor(CoordinatorEntity[GrimmoryCoordinator], SensorE
         book: dict[str, Any],
         parent_device_id: str,
         progress_source: str | None,
+        entry_id: str,
     ) -> None:
         """Initialize the sensor."""
         super().__init__(coordinator)
         self._book_id = book["book_id"]
         self._parent_device_id = parent_device_id
         self._progress_source = progress_source
+        self._entry_id = entry_id
         self._attr_name = "Read progress"
-        self._attr_unique_id = f"book_{self._book_id}_read_progress"
+        self._attr_unique_id = f"{self._entry_id}_book_{self._book_id}_read_progress"
         self._attr_device_info = ChildDeviceInfo(
-            identifiers={(DOMAIN, f"book_{self._book_id}")},
+            identifiers={(DOMAIN, f"{self._entry_id}_book_{self._book_id}")},
             name=_get_book_device_name(book, self._book_id),
             parent_device_id=parent_device_id,
         )
@@ -270,7 +276,7 @@ class GrimmoryBookProgressSensor(CoordinatorEntity[GrimmoryCoordinator], SensorE
         if book is not None:
             name = _get_book_device_name(book, self._book_id)
             self._attr_device_info = ChildDeviceInfo(
-                identifiers={(DOMAIN, f"book_{self._book_id}")},
+                identifiers={(DOMAIN, f"{self._entry_id}_book_{self._book_id}")},
                 name=name,
                 parent_device_id=self._parent_device_id,
             )
