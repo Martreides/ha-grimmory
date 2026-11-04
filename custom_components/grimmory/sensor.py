@@ -8,7 +8,6 @@ from datetime import timedelta
 from typing import Any
 
 import aiohttp
-
 from homeassistant.components.sensor import SensorEntity, SensorStateClass
 from homeassistant.const import PERCENTAGE
 from homeassistant.core import HomeAssistant
@@ -50,6 +49,8 @@ async def async_setup_entry(
 
     sensors = [
         GrimmoryBookCountSensor(client, entry.entry_id),
+        GrimmoryBookCountReadSensor(coordinator, entry.entry_id),
+        GrimmoryBookCountReadingSensor(coordinator, entry.entry_id),
         GrimmoryBookdropPendingReviewSensor(client, entry.entry_id),
         GrimmoryLastReadSensor(client, entry.entry_id),
     ]
@@ -105,6 +106,84 @@ class GrimmoryBookCountSensor(SensorEntity):
             self._attr_available = False
             return
         self._attr_available = True
+
+
+class GrimmoryBookCountReadSensor(CoordinatorEntity[GrimmoryCoordinator], SensorEntity):
+    """A sensor for the read book count in Grimmory."""
+
+    _attr_has_entity_name = True
+    _attr_name = "Read book count"
+    _attr_icon = "mdi:book-check-outline"
+
+    def __init__(self, coordinator: GrimmoryCoordinator, entry_id: str) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{entry_id}_book_count_read"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, entry_id)},
+            name="Grimmory",
+            manufacturer="Grimmory",
+        )
+
+    async def async_added_to_hass(self) -> None:
+        """Register the listener and apply the coordinator's current data."""
+        await super().async_added_to_hass()
+        self._handle_coordinator_update()
+
+    def _handle_coordinator_update(self) -> None:
+        """Fetch number of read books."""
+        distributions = self.coordinator.data["distributions"]
+
+        stats = distributions.get("statusDistribution")
+        count_read = None
+        for stat in stats:
+            if stat.get("status") == "READ":
+                count_read = stat.get("count")
+                break
+
+        self._attr_native_value = count_read if count_read is not None else 0
+
+        super()._handle_coordinator_update()
+
+
+class GrimmoryBookCountReadingSensor(
+    CoordinatorEntity[GrimmoryCoordinator], SensorEntity
+):
+    """A sensor for the reading book count in Grimmory."""
+
+    _attr_has_entity_name = True
+    _attr_name = "Reading book count"
+    _attr_icon = "mdi:book-open-outline"
+
+    def __init__(self, coordinator: GrimmoryCoordinator, entry_id: str) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{entry_id}_book_count_reading"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, entry_id)},
+            name="Grimmory",
+            manufacturer="Grimmory",
+        )
+
+    async def async_added_to_hass(self) -> None:
+        """Register the listener and apply the coordinator's current data."""
+        await super().async_added_to_hass()
+        self._handle_coordinator_update()
+
+    def _handle_coordinator_update(self) -> None:
+        """Fetch number of reading books."""
+        distributions = self.coordinator.data["distributions"]
+
+        stats = distributions.get("statusDistribution")
+        count_read = None
+        for stat in stats:
+            if stat.get("status") == "READING":
+                count_read = stat.get("count")
+                break
+
+        self._attr_native_value = count_read if count_read is not None else 0
+
+        super()._handle_coordinator_update()
 
 
 class GrimmoryBookdropPendingReviewSensor(SensorEntity):
@@ -211,7 +290,7 @@ class GrimmoryBookReadStatusSensor(
     def _handle_coordinator_update(self) -> None:
         """Update the book's read status from coordinator data."""
 
-        book = self.coordinator.data.get(self._book_id)
+        book = self.coordinator.data["books"].get(self._book_id)
         self._attr_available = book is not None
 
         if book is not None:
@@ -270,7 +349,7 @@ class GrimmoryBookProgressSensor(CoordinatorEntity[GrimmoryCoordinator], SensorE
 
     def _handle_coordinator_update(self) -> None:
         """Fetch the book's koreader pogress."""
-        book = self.coordinator.data.get(self._book_id)
+        book = self.coordinator.data["books"].get(self._book_id)
         self._attr_available = book is not None
 
         if book is not None:

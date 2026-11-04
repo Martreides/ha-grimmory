@@ -17,7 +17,7 @@ from .const import DOMAIN
 _LOGGER = logging.getLogger(__name__)
 
 
-class GrimmoryCoordinator(DataUpdateCoordinator[dict[int, dict[str, Any]]]):
+class GrimmoryCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     """Fetch data for selected Grimmory books."""
 
     def __init__(
@@ -38,11 +38,13 @@ class GrimmoryCoordinator(DataUpdateCoordinator[dict[int, dict[str, Any]]]):
             update_interval=timedelta(minutes=5),
         )
 
-    async def _async_update_data(self) -> dict[int, dict[str, Any]]:
+    async def _async_update_data(self) -> dict[str, Any]:
         """Fetch data for all selected books."""
         books = {}
 
         for book_id in self.book_ids:
             books[book_id] = await self.client.get_book(book_id)
 
-        return books
+        distributions = await self.client.get_reading_book_distributions()
+
+        return {"books": books, "distributions": distributions}
