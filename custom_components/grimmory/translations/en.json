@@ -12,10 +12,28 @@
     },
     "step": {
       "user": {
+        "title": "Connect to Grimmory",
+        "description": "Enter the URL of your Grimmory server.",
         "data": {
-          "host": "Host",
-          "password": "Password",
-          "username": "Username"
+          "host": "Host"
+        }
+      },
+      "auth_method": {
+        "title": "Choose an authentication method",
+        "description": "Select how you want to sign in to Grimmory.",
+        "data": {
+          "auth_method": "Authentication method"
+        },
+        "data_description": {
+          "auth_method": "Choose username and password or OIDC."
+        }
+      },
+      "credentials": {
+        "title": "Sign in with username and password",
+        "description": "Enter your Grimmory username and password.",
+        "data": {
+          "username": "Username",
+          "password": "Password"
         }
       },
       "library": {
@@ -88,6 +106,14 @@
       "book_not_found": "No book was found with this ID.",
       "book_not_in_library": "This book is not in the selected library.",
       "book_already_added": "This book has already been added."
+    }
+  },
+  "selector": {
+    "auth_method": {
+      "options": {
+        "credentials": "Username and password",
+        "oidc": "OIDC"
+      }
     }
   }
 }

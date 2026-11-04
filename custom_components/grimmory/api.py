@@ -23,6 +23,10 @@ class GrimmoryRateLimitedError(aiohttp.ClientError):
     """Raised when Grimmory rate limits token refreshes."""
 
 
+class CannotConnect(Exception):
+    """Error to indicate we cannot connect."""
+
+
 class GrimmoryApiClient:
     """Grimmory API client."""
 
@@ -73,6 +77,23 @@ class GrimmoryApiClient:
         response.raise_for_status()
 
         return response_json
+
+    @staticmethod
+    async def get_public_settings(host: str) -> dict:
+        """Get public settings from the Grimmory API."""
+
+        _LOGGER.debug("Getting public settings from Grimmory API at %s", host)
+
+        try:
+            async with (
+                aiohttp.ClientSession() as session,
+                session.get(f"{host}/api/v1/public-settings") as response,
+            ):
+                response.raise_for_status()
+                return await response.json()
+        except (aiohttp.ClientError, TimeoutError):
+            _LOGGER.warning("Unable to connect to Grimmory at %s", host)
+            raise CannotConnect from None
 
     def _start_reauth(self) -> None:
         """Start reauthentication once the API rejects the refreshed token."""
