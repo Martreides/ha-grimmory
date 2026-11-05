@@ -47,8 +47,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: GrimmoryConfigEntry) -> 
         client=client,
         coordinator=coordinator,
     )
-    _LOGGER.debug("Grimmory API client initialized")
-
     device_registry = dr.async_get(hass)
 
     device_registry.async_get_or_create(

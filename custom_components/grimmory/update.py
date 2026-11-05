@@ -3,8 +3,6 @@
 # SPDX-License-Identifier: GPL-3.0-only
 """Update platform for Grimmory."""
 
-import logging
-
 import aiohttp
 
 from homeassistant.components.update import UpdateEntity
@@ -17,8 +15,6 @@ from . import GrimmoryConfigEntry
 from .api import GrimmoryApiClient
 from .const import DOMAIN
 
-_LOGGER = logging.getLogger(__name__)
-
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -28,8 +24,6 @@ async def async_setup_entry(
     """Set up the Grimmory sensor platform."""
 
     client = entry.runtime_data.client
-
-    _LOGGER.debug("Setting up Grimmory update entity")
 
     async_add_entities(
         [
