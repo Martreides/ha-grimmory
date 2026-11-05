@@ -8,7 +8,11 @@ from datetime import timedelta
 from typing import Any
 
 import aiohttp
-from homeassistant.components.sensor import SensorEntity, SensorStateClass
+from homeassistant.components.sensor import (
+    SensorDeviceClass,
+    SensorEntity,
+    SensorStateClass,
+)
 from homeassistant.const import PERCENTAGE
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
@@ -16,6 +20,7 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.device_registry import ChildDeviceInfo, DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.util import dt as dt_util
 
 from . import GrimmoryConfigEntry
 from .api import GrimmoryApiClient
@@ -76,6 +81,9 @@ async def async_setup_entry(
                 ),
                 GrimmoryBookProgressSensor(
                     coordinator, book, parent_device.id, progress_source, entry.entry_id
+                ),
+                GrimmoryBookLastReadSensor(
+                    coordinator, book, parent_device.id, entry.entry_id
                 ),
             ],
         )
@@ -375,5 +383,66 @@ class GrimmoryBookProgressSensor(CoordinatorEntity[GrimmoryCoordinator], SensorE
                 progress = book.get("epubProgress")
 
             self._attr_native_value = progress.get("percentage") if progress else None
+
+        super()._handle_coordinator_update()
+
+
+class GrimmoryBookLastReadSensor(CoordinatorEntity[GrimmoryCoordinator], SensorEntity):
+    """Sensor for when a Grimmory book was last read."""
+
+    _attr_has_entity_name = True
+    _attr_icon = "mdi:book-clock-outline"
+
+    def __init__(
+        self,
+        coordinator: GrimmoryCoordinator,
+        book: dict[str, Any],
+        parent_device_id: str,
+        entry_id: str,
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator)
+        self._book_id = book["book_id"]
+        self._parent_device_id = parent_device_id
+        self._entry_id = entry_id
+        self._attr_name = "Last read"
+        self._attr_unique_id = f"{self._entry_id}_book_{self._book_id}_last_read"
+        self._attr_device_class = SensorDeviceClass.TIMESTAMP
+        self._attr_device_info = ChildDeviceInfo(
+            identifiers={(DOMAIN, f"{self._entry_id}_book_{self._book_id}")},
+            name=_get_book_device_name(book, self._book_id),
+            parent_device_id=parent_device_id,
+        )
+
+    async def async_added_to_hass(self) -> None:
+        """Register the listener and apply the coordinator's current data."""
+        await super().async_added_to_hass()
+        self._handle_coordinator_update()
+
+    def _handle_coordinator_update(self) -> None:
+        """Fetch the book's last read time."""
+        book = self.coordinator.data["books"].get(self._book_id)
+        self._attr_available = book is not None
+
+        if book is not None:
+            name = _get_book_device_name(book, self._book_id)
+            self._attr_device_info = ChildDeviceInfo(
+                identifiers={(DOMAIN, f"{self._entry_id}_book_{self._book_id}")},
+                name=name,
+                parent_device_id=self._parent_device_id,
+            )
+            device = self.device_entry
+
+            if device is not None and device.name != name:
+                dr.async_get(self.hass).async_update_child_device(
+                    device.id,
+                    name=name,
+                )
+
+            # Datetime format "lastReadTime": "2026-11-04T21:59:05Z"
+            last_read = book.get("lastReadTime")
+            self._attr_native_value = (
+                dt_util.parse_datetime(last_read) if last_read else None
+            )
 
         super()._handle_coordinator_update()
