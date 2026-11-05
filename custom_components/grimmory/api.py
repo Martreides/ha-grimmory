@@ -53,11 +53,7 @@ class GrimmoryApiClient:
     @staticmethod
     async def login(data: dict[str, Any]) -> dict[str, Any]:
         """Login to the Grimmory API."""
-        _LOGGER.debug(
-            "Logging in to Grimmory API at %s as %s",
-            data[CONF_HOST],
-            data[CONF_USERNAME],
-        )
+        _LOGGER.debug("Logging in to Grimmory API at %s", data[CONF_HOST])
 
         async with (
             aiohttp.ClientSession() as session,
@@ -74,8 +70,6 @@ class GrimmoryApiClient:
         _LOGGER.debug("Login response status: %s", response.status)
 
         response.raise_for_status()
-
-        _LOGGER.debug("Login successful!")
 
         return response_json
 
@@ -240,8 +234,6 @@ class GrimmoryApiClient:
     async def get_book_count(self, library_id: int | None) -> int:
         """Get the number of books in Grimmory."""
 
-        _LOGGER.debug("Getting book count from Grimmory API at %s", self.host)
-
         if self.host is None or self.token is None:
             raise RuntimeError("Client is not available")
 
@@ -264,8 +256,6 @@ class GrimmoryApiClient:
     async def get_grimmory_version(self):
         """Get the Grimmory version."""
 
-        _LOGGER.debug("Getting Grimmory version from API at %s", self.host)
-
         if self.host is None or self.token is None:
             raise RuntimeError("Client is not available")
 
@@ -284,8 +274,6 @@ class GrimmoryApiClient:
     async def get_kobo_sync_status(self):
         """Get the Kobo sync status."""
 
-        _LOGGER.debug("Getting Kobo Sync status from API at %s", self.host)
-
         if self.host is None or self.token is None:
             raise RuntimeError("Client is not available")
 
@@ -303,8 +291,6 @@ class GrimmoryApiClient:
 
     async def get_last_read_book(self, library_id: int | None) -> dict[str, Any] | None:
         """Get the last read book."""
-
-        _LOGGER.debug("Getting last read book from API at %s", self.host)
 
         if self.host is None or self.token is None:
             raise RuntimeError("Client is not available")
@@ -328,15 +314,11 @@ class GrimmoryApiClient:
         )
 
         books = last_read.get("content", [])
-        if books:
-            _LOGGER.debug("Retrieved last read book: %s", books[0].get("title"))
 
         return books[0] if books else None
 
     async def get_libraries(self):
         """Get the available libraries in Grimmory."""
-
-        _LOGGER.debug("Getting libraries from Grimmory API at %s", self.host)
 
         if self.host is None or self.token is None:
             raise RuntimeError("Client is not available")

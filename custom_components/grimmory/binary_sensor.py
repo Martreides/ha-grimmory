@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: GPL-3.0-only
 """Binary sensor platform for Grimmory."""
 
-import logging
 from datetime import timedelta
 
 import aiohttp
@@ -20,8 +19,6 @@ from .const import DOMAIN
 
 SCAN_INTERVAL = timedelta(minutes=5)
 
-_LOGGER = logging.getLogger(__name__)
-
 
 async def async_setup_entry(
     hass: HomeAssistant | None,
@@ -35,8 +32,6 @@ async def async_setup_entry(
     sensors = [
         GrimmoryKoboSyncEnabledSensor(client, entry.entry_id),
     ]
-    _LOGGER.debug("Setting up Grimmory sensors: %s", sensors)
-
     async_add_entities(sensors, update_before_add=True)
 
 
