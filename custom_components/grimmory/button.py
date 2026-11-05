@@ -14,7 +14,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import GrimmoryConfigEntry
 from .api import GrimmoryApiClient
-from .const import DOMAIN
+from .const import CONF_LIBRARY_ID, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -29,7 +29,9 @@ async def async_setup_entry(
     client = entry.runtime_data.client
 
     buttons = [
-        GrimmoryRefreshButton(client, entry.entry_id),
+        GrimmoryRefreshButton(
+            client, entry.entry_id, entry.data.get(CONF_LIBRARY_ID)
+        ),
         GrimmoryBookdropRescanButton(client, entry.entry_id),
     ]
 
@@ -43,9 +45,15 @@ class GrimmoryRefreshButton(ButtonEntity):
     _attr_name = "Refresh libraries"
     _attr_icon = "mdi:archive-refresh-outline"
 
-    def __init__(self, client: GrimmoryApiClient, entry_id: str) -> None:
+    def __init__(
+        self,
+        client: GrimmoryApiClient,
+        entry_id: str,
+        library_id: int | None,
+    ) -> None:
         """Initialize the button."""
         self._client = client
+        self._library_id = library_id
         self._attr_unique_id = f"{entry_id}_refresh_libraries"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, entry_id)},
@@ -56,7 +64,7 @@ class GrimmoryRefreshButton(ButtonEntity):
     async def async_press(self) -> None:
         """Refresh the configured Grimmory library or libraries."""
         try:
-            await self._client.refresh_libraries()
+            await self._client.refresh_libraries(self._library_id)
         except (aiohttp.ClientError, TimeoutError, ConfigEntryAuthFailed):
             _LOGGER.warning("Unable to refresh Grimmory libraries")
             raise HomeAssistantError("Unable to refresh Grimmory libraries") from None

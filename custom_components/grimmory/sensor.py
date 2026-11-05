@@ -24,7 +24,7 @@ from homeassistant.util import dt as dt_util
 
 from . import GrimmoryConfigEntry
 from .api import GrimmoryApiClient
-from .const import CONF_BOOKS, CONF_PROGRESS_SOURCE, DOMAIN
+from .const import CONF_BOOKS, CONF_LIBRARY_ID, CONF_PROGRESS_SOURCE, DOMAIN
 from .coordinator import GrimmoryCoordinator
 
 SCAN_INTERVAL = timedelta(minutes=5)
@@ -43,7 +43,7 @@ def _get_book_device_name(book: dict[str, Any], book_id: int) -> str:
 
 
 async def async_setup_entry(
-    hass: HomeAssistant | None,
+    hass: HomeAssistant,
     entry: GrimmoryConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
@@ -52,16 +52,17 @@ async def async_setup_entry(
     client = entry.runtime_data.client
     coordinator = entry.runtime_data.coordinator
 
-    sensors = [
-        GrimmoryBookCountSensor(client, entry.entry_id),
-        GrimmoryBookCountReadSensor(coordinator, entry.entry_id),
-        GrimmoryBookCountReadingSensor(coordinator, entry.entry_id),
-        GrimmoryBookdropPendingReviewSensor(client, entry.entry_id),
-        GrimmoryLastReadSensor(client, entry.entry_id),
-    ]
-    _LOGGER.debug("Setting up Grimmory sensors: %s", sensors)
-
-    async_add_entities(sensors, update_before_add=True)
+    library_id = entry.data.get(CONF_LIBRARY_ID)
+    async_add_entities(
+        [
+            GrimmoryBookCountSensor(client, entry.entry_id, library_id),
+            GrimmoryBookCountReadSensor(coordinator, entry.entry_id),
+            GrimmoryBookCountReadingSensor(coordinator, entry.entry_id),
+            GrimmoryBookdropPendingReviewSensor(client, entry.entry_id),
+            GrimmoryLastReadSensor(client, entry.entry_id, library_id),
+        ],
+        update_before_add=True,
+    )
 
     device_registry = dr.async_get(hass)
     parent_device = device_registry.async_get_device_by_identifier(
@@ -96,9 +97,15 @@ class GrimmoryBookCountSensor(SensorEntity):
     _attr_name = "Book count"
     _attr_icon = "mdi:bookshelf"
 
-    def __init__(self, client: GrimmoryApiClient, entry_id: str) -> None:
+    def __init__(
+        self,
+        client: GrimmoryApiClient,
+        entry_id: str,
+        library_id: int | None,
+    ) -> None:
         """Initialize the sensor."""
         self._client = client
+        self._library_id = library_id
         self._attr_unique_id = f"{entry_id}_book_count"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, entry_id)},
@@ -109,7 +116,9 @@ class GrimmoryBookCountSensor(SensorEntity):
     async def async_update(self) -> None:
         """Fetch number of books."""
         try:
-            self._attr_native_value = await self._client.get_book_count()
+            self._attr_native_value = await self._client.get_book_count(
+                self._library_id
+            )
         except (aiohttp.ClientError, TimeoutError, ConfigEntryAuthFailed):
             self._attr_available = False
             return
@@ -229,9 +238,15 @@ class GrimmoryLastReadSensor(SensorEntity):
     _attr_name = "Last read book"
     _attr_icon = "mdi:book-clock-outline"
 
-    def __init__(self, client: GrimmoryApiClient, entry_id: str) -> None:
+    def __init__(
+        self,
+        client: GrimmoryApiClient,
+        entry_id: str,
+        library_id: int | None,
+    ) -> None:
         """Initialize the sensor."""
         self._client = client
+        self._library_id = library_id
         self._attr_unique_id = f"{entry_id}_last_read_book"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, entry_id)},
@@ -242,7 +257,7 @@ class GrimmoryLastReadSensor(SensorEntity):
     async def async_update(self) -> None:
         """Fetch last read book."""
         try:
-            book = await self._client.get_last_read_book()
+            book = await self._client.get_last_read_book(self._library_id)
         except (aiohttp.ClientError, TimeoutError, ConfigEntryAuthFailed):
             self._attr_available = False
             return
