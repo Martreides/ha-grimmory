@@ -14,10 +14,12 @@ from homeassistant.config_entries import (
     ConfigEntry,
     ConfigFlow,
     ConfigFlowResult,
+    HomeAssistant,
     OptionsFlowWithReload,
 )
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_TOKEN, CONF_USERNAME
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.selector import (
     SelectSelector,
     SelectSelectorConfig,
@@ -45,14 +47,16 @@ STEP_USER_DATA_SCHEMA = probatio.Schema(
 )
 
 
-async def validate_input(data: dict[str, Any]) -> dict[str, Any]:
+async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
     """Validate the user input allows us to connect.
 
     Data has the keys from STEP_USER_DATA_SCHEMA with values provided by the user.
     """
 
+    session = async_get_clientsession(hass)
+
     try:
-        response_json = await GrimmoryApiClient.login(data)
+        response_json = await GrimmoryApiClient.login(session, data)
     except aiohttp.ClientResponseError as err:
         if err.status in (401, 403):
             _LOGGER.warning("Invalid credentials for Grimmory at %s", data[CONF_HOST])
@@ -142,7 +146,7 @@ class GrimmoryConfigFlow(ConfigFlow, domain=DOMAIN):
             self._abort_if_unique_id_configured()
 
             try:
-                api_data = await validate_input(user_input)
+                api_data = await validate_input(self.hass, user_input)
             except CannotConnect:
                 errors["base"] = "cannot_connect"
             except InvalidAuth:
@@ -254,11 +258,12 @@ class GrimmoryConfigFlow(ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             try:
                 api_data = await validate_input(
+                    self.hass,
                     {
                         CONF_HOST: reauth_entry.data[CONF_HOST],
                         CONF_USERNAME: reauth_entry.data[CONF_USERNAME],
                         CONF_PASSWORD: user_input[CONF_PASSWORD],
-                    }
+                    },
                 )
             except CannotConnect:
                 errors["base"] = "cannot_connect"

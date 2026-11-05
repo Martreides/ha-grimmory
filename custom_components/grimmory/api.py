@@ -30,6 +30,7 @@ class GrimmoryApiClient:
         self,
         hass: HomeAssistant | None = None,
         entry: ConfigEntry | None = None,
+        session: aiohttp.ClientSession | None = None,
         host: str | None = None,
         token: str | None = None,
     ) -> None:
@@ -51,20 +52,19 @@ class GrimmoryApiClient:
         self._refresh_retry_after = 0.0
 
     @staticmethod
-    async def login(data: dict[str, Any]) -> dict[str, Any]:
+    async def login(
+        session: aiohttp.ClientSession, data: dict[str, Any]
+    ) -> dict[str, Any]:
         """Login to the Grimmory API."""
         _LOGGER.debug("Logging in to Grimmory API at %s", data[CONF_HOST])
 
-        async with (
-            aiohttp.ClientSession() as session,
-            session.post(
-                f"{data[CONF_HOST]}/api/v1/auth/login",
-                json={
-                    "username": data[CONF_USERNAME],
-                    "password": data[CONF_PASSWORD],
-                },
-            ) as response,
-        ):
+        async with session.post(
+            f"{data[CONF_HOST]}/api/v1/auth/login",
+            json={
+                "username": data[CONF_USERNAME],
+                "password": data[CONF_PASSWORD],
+            },
+        ) as response:
             response_json = await response.json()
 
         _LOGGER.debug("Login response status: %s", response.status)
