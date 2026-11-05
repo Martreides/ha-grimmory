@@ -404,3 +404,15 @@ class GrimmoryApiClient:
             params=None,
             headers={"Authorization": f"Bearer {self.token}"},
         )
+
+    async def get_book_cover(self, book_id: int) -> bytes:
+        """Get the book cover image for a book by ID."""
+
+        if self.host is None or self.token is None:
+            raise RuntimeError("Client is not available")
+
+        return await self._request(
+            f"{self.host}/api/v1/media/book/{book_id}/cover",
+            params=None,
+            headers={"Authorization": f"Bearer {self.token}"},
+        )

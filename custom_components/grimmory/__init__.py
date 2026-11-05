@@ -21,6 +21,7 @@ _PLATFORMS: list[Platform] = [
     Platform.UPDATE,
     Platform.BINARY_SENSOR,
     Platform.BUTTON,
+    Platform.IMAGE,
 ]
 
 type GrimmoryConfigEntry = ConfigEntry[GrimmoryRuntimeData]
