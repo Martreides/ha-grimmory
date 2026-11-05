@@ -441,3 +441,15 @@ class GrimmoryApiClient:
             params=params,
             headers={"Authorization": f"Bearer {self.token}"},
         )
+
+    async def get_reading_book_distributions(self):
+        """Get reading status distribution"""
+
+        if self.host is None or self.token is None:
+            raise RuntimeError("Client is not available")
+
+        return await self._request(
+            f"{self.host}/api/v1/user-stats/reading/book-distributions",
+            params=None,
+            headers={"Authorization": f"Bearer {self.token}"},
+        )
