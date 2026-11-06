@@ -186,6 +186,7 @@ class GrimmoryConfigFlow(ConfigFlow, domain=DOMAIN):
             )
 
         client = GrimmoryApiClient(
+            session=async_get_clientsession(self.hass),
             host=self._login_data[CONF_HOST],
             token=self._login_data[CONF_TOKEN],
         )
@@ -220,7 +221,9 @@ class GrimmoryConfigFlow(ConfigFlow, domain=DOMAIN):
                 },
             )
 
-        client = GrimmoryApiClient(hass=self.hass, entry=entry)
+        client = GrimmoryApiClient(
+            session=async_get_clientsession(self.hass), hass=self.hass, entry=entry
+        )
         current_progress_source = (
             "grimmory"
             if entry.data.get(CONF_PROGRESS_SOURCE) is None
@@ -311,6 +314,7 @@ class GrimmoryOptionsFlow(OptionsFlowWithReload):
             book_id = user_input["book_id"]
             entry = self.config_entry
             client = GrimmoryApiClient(
+                session=async_get_clientsession(self.hass),
                 hass=self.hass,
                 entry=entry,
             )
@@ -404,7 +408,9 @@ class GrimmoryOptionsFlow(OptionsFlowWithReload):
         """Change the selected library and progress source."""
 
         entry = self.config_entry
-        client = GrimmoryApiClient(hass=self.hass, entry=entry)
+        client = GrimmoryApiClient(
+            session=async_get_clientsession(self.hass), hass=self.hass, entry=entry
+        )
 
         if user_input is not None:
             library_id = user_input[CONF_LIBRARY_ID]

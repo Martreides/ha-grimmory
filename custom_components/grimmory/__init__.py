@@ -40,7 +40,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: GrimmoryConfigEntry) -> 
     """Set up grimmory from a config entry."""
 
     session = async_get_clientsession(hass)
-    client = GrimmoryApiClient(hass, entry, session)
+    client = GrimmoryApiClient(session=session, hass=hass, entry=entry)
 
     coordinator = GrimmoryCoordinator(hass, entry, client)
     await coordinator.async_config_entry_first_refresh()

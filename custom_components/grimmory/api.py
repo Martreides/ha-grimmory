@@ -1,7 +1,7 @@
 # Copyright (C) 2026 Michiel Cornelissen
 # This file is part of ha-grimmory
 # SPDX-License-Identifier: GPL-3.0-only
-"""Minimal Grimmory API client."""
+"""Grimmory API client."""
 
 import asyncio
 import logging
@@ -24,19 +24,20 @@ class GrimmoryRateLimitedError(aiohttp.ClientError):
 
 
 class GrimmoryApiClient:
-    """Minimal Grimmory API client."""
+    """Grimmory API client."""
 
     def __init__(
         self,
+        session: aiohttp.ClientSession,
         hass: HomeAssistant | None = None,
         entry: ConfigEntry | None = None,
-        session: aiohttp.ClientSession | None = None,
         host: str | None = None,
         token: str | None = None,
     ) -> None:
         """Initialize the Grimmory API client."""
         self.hass = hass
         self.entry = entry
+        self.session = session
 
         if entry is not None:
             self.host = entry.data[CONF_HOST]
@@ -103,13 +104,10 @@ class GrimmoryApiClient:
                 raise GrimmoryRateLimitedError("Grimmory refresh is rate limited")
 
             _LOGGER.debug("Refreshing access token for Grimmory API at %s", self.host)
-            async with (
-                aiohttp.ClientSession() as session,
-                session.post(
-                    f"{self.host}/api/v1/auth/refresh",
-                    json={"refreshToken": self.refresh_token},
-                ) as response,
-            ):
+            async with self.session.post(
+                f"{self.host}/api/v1/auth/refresh",
+                json={"refreshToken": self.refresh_token},
+            ) as response:
                 if response.status == 429:
                     self._refresh_retry_after = (
                         asyncio.get_running_loop().time() + _TOKEN_REFRESH_COOLDOWN
@@ -157,10 +155,7 @@ class GrimmoryApiClient:
 
         token_used = self.token
 
-        async with (
-            aiohttp.ClientSession() as session,
-            session.get(url, params=params, headers=headers) as response,
-        ):
+        async with self.session.get(url, params=params, headers=headers) as response:
             if response.status == 401 and retry:
                 _LOGGER.debug("Unauthorized request to Grimmory API at %s", self.host)
                 await self._refresh_token(token_used)
@@ -184,10 +179,7 @@ class GrimmoryApiClient:
 
         token_used = self.token
 
-        async with (
-            aiohttp.ClientSession() as session,
-            session.put(url, params=params, headers=headers) as response,
-        ):
+        async with self.session.put(url, params=params, headers=headers) as response:
             if response.status == 401 and retry:
                 _LOGGER.debug("Unauthorized request to Grimmory API at %s", self.host)
                 await self._refresh_token(token_used)
@@ -210,10 +202,7 @@ class GrimmoryApiClient:
 
         token_used = self.token
 
-        async with (
-            aiohttp.ClientSession() as session,
-            session.post(url, params=params, headers=headers) as response,
-        ):
+        async with self.session.post(url, params=params, headers=headers) as response:
             if response.status == 401 and retry:
                 _LOGGER.debug("Unauthorized request to Grimmory API at %s", self.host)
                 await self._refresh_token(token_used)
