@@ -26,13 +26,13 @@ async def async_setup_entry(
 ) -> None:
     """Set up the Grimmory button platform."""
 
-    client = entry.runtime_data.client
+    api_client = entry.runtime_data.api_client
 
     buttons = [
         GrimmoryRefreshButton(
-            client, entry.entry_id, entry.data.get(CONF_LIBRARY_ID)
+            api_client, entry.entry_id, entry.data.get(CONF_LIBRARY_ID)
         ),
-        GrimmoryBookdropRescanButton(client, entry.entry_id),
+        GrimmoryBookdropRescanButton(api_client, entry.entry_id),
     ]
 
     async_add_entities(buttons)
@@ -47,12 +47,12 @@ class GrimmoryRefreshButton(ButtonEntity):
 
     def __init__(
         self,
-        client: GrimmoryApiClient,
+        api_client: GrimmoryApiClient,
         entry_id: str,
         library_id: int | None,
     ) -> None:
         """Initialize the button."""
-        self._client = client
+        self._api_client = api_client
         self._library_id = library_id
         self._attr_unique_id = f"{entry_id}_refresh_libraries"
         self._attr_device_info = DeviceInfo(
@@ -64,7 +64,7 @@ class GrimmoryRefreshButton(ButtonEntity):
     async def async_press(self) -> None:
         """Refresh the configured Grimmory library or libraries."""
         try:
-            await self._client.refresh_libraries(self._library_id)
+            await self._api_client.refresh_libraries(self._library_id)
         except (aiohttp.ClientError, TimeoutError, ConfigEntryAuthFailed):
             _LOGGER.warning("Unable to refresh Grimmory libraries")
             raise HomeAssistantError("Unable to refresh Grimmory libraries") from None
@@ -77,9 +77,9 @@ class GrimmoryBookdropRescanButton(ButtonEntity):
     _attr_name = "Rescan bookdrop folder"
     _attr_icon = "mdi:folder-sync-outline"
 
-    def __init__(self, client: GrimmoryApiClient, entry_id: str) -> None:
+    def __init__(self, api_client: GrimmoryApiClient, entry_id: str) -> None:
         """Initialize the button."""
-        self._client = client
+        self._api_client = api_client
         self._attr_unique_id = f"{entry_id}_bookdrop_rescan"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, entry_id)},
@@ -90,7 +90,7 @@ class GrimmoryBookdropRescanButton(ButtonEntity):
     async def async_press(self) -> None:
         """Request a rescan of the Grimmory bookdrop folder."""
         try:
-            await self._client.rescan_bookdrop_folder()
+            await self._api_client.rescan_bookdrop_folder()
         except (aiohttp.ClientError, TimeoutError, ConfigEntryAuthFailed):
             _LOGGER.warning("Unable to rescan the Grimmory bookdrop folder")
             raise HomeAssistantError(

@@ -33,7 +33,7 @@ _LOGGER = logging.getLogger(__name__)
 class GrimmoryRuntimeData:
     """Runtime data for the Grimmory integration."""
 
-    client: GrimmoryApiClient
+    api_client: GrimmoryApiClient
     coordinator: GrimmoryCoordinator
 
 
@@ -41,13 +41,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: GrimmoryConfigEntry) -> 
     """Set up grimmory from a config entry."""
 
     session = async_get_clientsession(hass)
-    client = GrimmoryApiClient(session=session, hass=hass, entry=entry)
+    api_client = GrimmoryApiClient(session=session, hass=hass, entry=entry)
 
-    coordinator = GrimmoryCoordinator(hass, entry, client)
+    coordinator = GrimmoryCoordinator(hass, entry, api_client)
     await coordinator.async_config_entry_first_refresh()
 
     entry.runtime_data = GrimmoryRuntimeData(
-        client=client,
+        api_client=api_client,
         coordinator=coordinator,
     )
     device_registry = dr.async_get(hass)

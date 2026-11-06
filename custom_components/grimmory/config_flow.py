@@ -77,13 +77,13 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
 
 
 async def _get_additional_settings_schema(
-    client: GrimmoryApiClient,
+    api_client: GrimmoryApiClient,
     current_library_id: int | None = None,
     current_progress_source: str | None = None,
 ) -> probatio.Schema:
     """Build the library and progress source selection schema."""
 
-    libraries = await client.get_libraries()
+    libraries = await api_client.get_libraries()
     current_library = "all" if current_library_id is None else str(current_library_id)
 
     return probatio.Schema(
@@ -185,14 +185,14 @@ class GrimmoryConfigFlow(ConfigFlow, domain=DOMAIN):
                 },
             )
 
-        client = GrimmoryApiClient(
+        api_client = GrimmoryApiClient(
             session=async_get_clientsession(self.hass),
             host=self._login_data[CONF_HOST],
             token=self._login_data[CONF_TOKEN],
         )
 
         try:
-            data_schema = await _get_additional_settings_schema(client)
+            data_schema = await _get_additional_settings_schema(api_client)
         except (aiohttp.ClientError, TimeoutError):
             _LOGGER.warning(
                 "Unable to retrieve Grimmory libraries from %s",
@@ -221,7 +221,7 @@ class GrimmoryConfigFlow(ConfigFlow, domain=DOMAIN):
                 },
             )
 
-        client = GrimmoryApiClient(
+        api_client = GrimmoryApiClient(
             session=async_get_clientsession(self.hass), hass=self.hass, entry=entry
         )
         current_progress_source = (
@@ -231,7 +231,7 @@ class GrimmoryConfigFlow(ConfigFlow, domain=DOMAIN):
         )
         try:
             data_schema = await _get_additional_settings_schema(
-                client,
+                api_client,
                 entry.data.get(CONF_LIBRARY_ID),
                 current_progress_source,
             )
@@ -313,14 +313,14 @@ class GrimmoryOptionsFlow(OptionsFlowWithReload):
         if user_input is not None:
             book_id = user_input["book_id"]
             entry = self.config_entry
-            client = GrimmoryApiClient(
+            api_client = GrimmoryApiClient(
                 session=async_get_clientsession(self.hass),
                 hass=self.hass,
                 entry=entry,
             )
 
             try:
-                book = await client.get_book(book_id)
+                book = await api_client.get_book(book_id)
             except aiohttp.ClientResponseError as err:
                 if err.status == 404:
                     errors["base"] = "book_not_found"
@@ -408,7 +408,7 @@ class GrimmoryOptionsFlow(OptionsFlowWithReload):
         """Change the selected library and progress source."""
 
         entry = self.config_entry
-        client = GrimmoryApiClient(
+        api_client = GrimmoryApiClient(
             session=async_get_clientsession(self.hass), hass=self.hass, entry=entry
         )
 
@@ -430,7 +430,7 @@ class GrimmoryOptionsFlow(OptionsFlowWithReload):
 
         try:
             data_schema = await _get_additional_settings_schema(
-                client,
+                api_client,
                 library_id,
                 progress_source,
             )

@@ -150,7 +150,7 @@ class GrimmoryApiClient:
         _LOGGER.debug("Successfully refreshed Grimmory access token")
         return True
 
-    async def _request(
+    async def _get(
         self,
         url: str,
         params: dict | None,
@@ -166,7 +166,7 @@ class GrimmoryApiClient:
             if response.status == 401 and retry:
                 _LOGGER.debug("Unauthorized request to Grimmory API at %s", self.host)
                 await self._refresh_token(token_used)
-                return await self._request(
+                return await self._get(
                     url,
                     params,
                     {
@@ -184,7 +184,9 @@ class GrimmoryApiClient:
                 return await response.read()
             return await response.json()
 
-    async def _put(self, url, params, headers, retry=True):
+    async def _put(
+        self, url: str, params: dict | None, headers: dict[str, str], retry: bool = True
+    ):
         """Make a PUT request to the Grimmory API."""
 
         token_used = self.token
@@ -207,7 +209,9 @@ class GrimmoryApiClient:
 
             response.raise_for_status()
 
-    async def _post(self, url, params, headers, retry=True):
+    async def _post(
+        self, url: str, params: dict | None, headers: dict[str, str], retry: bool = True
+    ):
         """Make a POST request to the Grimmory API."""
 
         token_used = self.token
@@ -240,7 +244,7 @@ class GrimmoryApiClient:
         if library_id is not None:
             params["libraryId"] = library_id
 
-        books = await self._request(
+        books = await self._get(
             f"{self.host}/api/v1/app/books",
             params=params,
             headers={
@@ -252,13 +256,13 @@ class GrimmoryApiClient:
         _LOGGER.debug("Retrieved %d books from Grimmory API", book_count)
         return book_count
 
-    async def get_grimmory_version(self):
+    async def get_grimmory_version(self) -> dict[str, Any]:
         """Get the Grimmory version."""
 
         if self.host is None or self.token is None:
             raise RuntimeError("Client is not available")
 
-        version_info = await self._request(
+        version_info = await self._get(
             f"{self.host}/api/v1/version",
             params=None,
             headers={
@@ -270,13 +274,13 @@ class GrimmoryApiClient:
 
         return version_info
 
-    async def get_kobo_sync_status(self):
+    async def get_kobo_sync_status(self) -> bool:
         """Get the Kobo sync status."""
 
         if self.host is None or self.token is None:
             raise RuntimeError("Client is not available")
 
-        kobo_settings = await self._request(
+        kobo_settings = await self._get(
             f"{self.host}/api/v1/kobo-settings",
             params=None,
             headers={
@@ -304,7 +308,7 @@ class GrimmoryApiClient:
         if library_id is not None:
             params["libraryId"] = library_id
 
-        last_read = await self._request(
+        last_read = await self._get(
             f"{self.host}/api/v1/app/books",
             params=params,
             headers={
@@ -316,13 +320,13 @@ class GrimmoryApiClient:
 
         return books[0] if books else None
 
-    async def get_libraries(self):
+    async def get_libraries(self) -> list[dict[str, Any]]:
         """Get the available libraries in Grimmory."""
 
         if self.host is None or self.token is None:
             raise RuntimeError("Client is not available")
 
-        libraries = await self._request(
+        libraries = await self._get(
             f"{self.host}/api/v1/libraries",
             params={},
             headers={
@@ -372,7 +376,7 @@ class GrimmoryApiClient:
         if self.host is None or self.token is None:
             raise RuntimeError("Client is not available")
 
-        return await self._request(
+        return await self._get(
             f"{self.host}/api/v1/books/{book_id}",
             params={
                 "withDescription": "false",
@@ -397,7 +401,7 @@ class GrimmoryApiClient:
         if size is not None:
             params["size"] = size
 
-        return await self._request(
+        return await self._get(
             f"{self.host}/api/v1/bookdrop/files",
             params=params,
             headers={"Authorization": f"Bearer {self.token}"},
@@ -409,7 +413,7 @@ class GrimmoryApiClient:
         if self.host is None or self.token is None:
             raise RuntimeError("Client is not available")
 
-        return await self._request(
+        return await self._get(
             f"{self.host}/api/v1/user-stats/reading/book-distributions",
             params=None,
             headers={"Authorization": f"Bearer {self.token}"},
@@ -421,7 +425,7 @@ class GrimmoryApiClient:
         if self.host is None or self.token is None:
             raise RuntimeError("Client is not available")
 
-        return await self._request(
+        return await self._get(
             f"{self.host}/api/v1/media/book/{book_id}/cover",
             params=None,
             headers={"Authorization": f"Bearer {self.token}"},
