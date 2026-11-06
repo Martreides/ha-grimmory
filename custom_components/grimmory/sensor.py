@@ -26,20 +26,11 @@ from . import GrimmoryConfigEntry
 from .api import GrimmoryApiClient
 from .const import CONF_BOOKS, CONF_LIBRARY_ID, CONF_PROGRESS_SOURCE, DOMAIN
 from .coordinator import GrimmoryCoordinator
+from .helpers import _get_book_device_name
 
 SCAN_INTERVAL = timedelta(minutes=5)
 
 _LOGGER = logging.getLogger(__name__)
-
-
-def _get_book_device_name(book: dict[str, Any], book_id: int) -> str:
-    """Build a device name from book metadata."""
-
-    metadata = book.get("metadata")
-    if metadata is None:
-        return f"Book {book_id}"
-
-    return f"{', '.join(metadata['authors'])} - {metadata['title']}"
 
 
 async def async_setup_entry(
