@@ -150,7 +150,14 @@ class GrimmoryApiClient:
         _LOGGER.debug("Successfully refreshed Grimmory access token")
         return True
 
-    async def _request(self, url, params, headers, retry=True):
+    async def _request(
+        self,
+        url: str,
+        params: dict | None,
+        headers: dict[str, str],
+        retry: bool = True,
+        as_bytes: bool = False,
+    ):
         """Make a GET request to the Grimmory API."""
 
         token_used = self.token
@@ -166,12 +173,15 @@ class GrimmoryApiClient:
                         "Authorization": f"Bearer {self.token}",
                     },
                     retry=False,
+                    as_bytes=as_bytes,
                 )
             if response.status == 401:
                 self._start_reauth()
                 raise ConfigEntryAuthFailed("Grimmory access token is invalid")
 
             response.raise_for_status()
+            if as_bytes:
+                return await response.read()
             return await response.json()
 
     async def _put(self, url, params, headers, retry=True):
@@ -403,4 +413,17 @@ class GrimmoryApiClient:
             f"{self.host}/api/v1/user-stats/reading/book-distributions",
             params=None,
             headers={"Authorization": f"Bearer {self.token}"},
+        )
+
+    async def get_book_cover(self, book_id: int) -> bytes:
+        """Get the book cover image for a book by ID."""
+
+        if self.host is None or self.token is None:
+            raise RuntimeError("Client is not available")
+
+        return await self._request(
+            f"{self.host}/api/v1/media/book/{book_id}/cover",
+            params=None,
+            headers={"Authorization": f"Bearer {self.token}"},
+            as_bytes=True,
         )
