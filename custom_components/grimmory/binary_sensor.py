@@ -27,10 +27,10 @@ async def async_setup_entry(
 ) -> None:
     """Set up the Grimmory binary sensor platform."""
 
-    client = entry.runtime_data.client
+    api_client = entry.runtime_data.api_client
 
     sensors = [
-        GrimmoryKoboSyncEnabledSensor(client, entry.entry_id),
+        GrimmoryKoboSyncEnabledSensor(api_client, entry.entry_id),
     ]
     async_add_entities(sensors, update_before_add=True)
 
@@ -42,9 +42,9 @@ class GrimmoryKoboSyncEnabledSensor(BinarySensorEntity):
     _attr_name = "Kobo Sync Enabled"
     _attr_icon = "mdi:book-sync-outline"
 
-    def __init__(self, client: GrimmoryApiClient, entry_id: str) -> None:
+    def __init__(self, api_client: GrimmoryApiClient, entry_id: str) -> None:
         """Initialize the sensor."""
-        self._client = client
+        self._api_client = api_client
         self._attr_unique_id = f"{entry_id}_kobo_sync_enabled"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, entry_id)},
@@ -55,7 +55,7 @@ class GrimmoryKoboSyncEnabledSensor(BinarySensorEntity):
     async def async_update(self) -> None:
         """Fetch Kobo sync status."""
         try:
-            self._attr_is_on = await self._client.get_kobo_sync_status()
+            self._attr_is_on = await self._api_client.get_kobo_sync_status()
         except (aiohttp.ClientError, TimeoutError, ConfigEntryAuthFailed):
             self._attr_available = False
             return

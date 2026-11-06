@@ -24,10 +24,10 @@ class GrimmoryCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self,
         hass: HomeAssistant,
         entry: ConfigEntry,
-        client: GrimmoryApiClient,
+        api_client: GrimmoryApiClient,
     ) -> None:
         """Initialize the coordinator."""
-        self.client = client
+        self.api_client = api_client
         self.book_ids = [book["book_id"] for book in entry.options.get("books", [])]
 
         super().__init__(
@@ -43,8 +43,8 @@ class GrimmoryCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         books = {}
 
         for book_id in self.book_ids:
-            books[book_id] = await self.client.get_book(book_id)
+            books[book_id] = await self.api_client.get_book(book_id)
 
-        distributions = await self.client.get_reading_book_distributions()
+        distributions = await self.api_client.get_reading_book_distributions()
 
         return {"books": books, "distributions": distributions}
