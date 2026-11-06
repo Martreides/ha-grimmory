@@ -20,12 +20,9 @@
       },
       "auth_method": {
         "title": "Choose an authentication method",
-        "description": "Select how you want to sign in to Grimmory.",
+        "description": "Your server has authentication using a username and password, and OIDC enabled. Select which method you want to use. Note that OIDC is experimental and requires specific configuration on the OIDC provider.",
         "data": {
           "auth_method": "Authentication method"
-        },
-        "data_description": {
-          "auth_method": "Choose username and password or OIDC."
         }
       },
       "credentials": {

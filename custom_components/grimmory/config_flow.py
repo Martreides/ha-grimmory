@@ -49,11 +49,8 @@ STEP_USER_DATA_SCHEMA = probatio.Schema(
 )
 
 
-async def validate_input(data: dict[str, Any]) -> dict[str, Any]:
-    """Validate the user input allows us to connect.
-
-    Data has the keys from STEP_USER_DATA_SCHEMA with values provided by the user.
-    """
+async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
+    """Validate whether the user input allows us to connect."""
 
     session = async_get_clientsession(hass)
 
@@ -250,7 +247,7 @@ class GrimmoryConfigFlow(AbstractOAuth2FlowHandler, domain=DOMAIN):
             data = {CONF_HOST: self._host, **user_input}
 
             try:
-                api_data = await validate_input(data)
+                api_data = await validate_input(self.hass, data)
             except CannotConnect:
                 errors["base"] = "cannot_connect"
             except InvalidAuth:
