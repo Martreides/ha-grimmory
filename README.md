@@ -42,11 +42,9 @@ To stop tracking a book, open **Configure** and select **Remove a book**.
 
 ## Installation
 
+The Home Assistant Marketplace (formerly HACS) is the recommended installation method. Grimmory is available there by default, so you do not need to add this repository manually.
 
-### Using HACS
-Add this repository to HACS (Marketplace) as custom repository and install the integration.
-
-[![Open Grimmory in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Martreides&repository=ha-grimmory&category=integration)
+[![Open Grimmory in the Home Assistant Marketplace](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Martreides&repository=ha-grimmory&category=integration)
 
 ### Manual
 Copy `custom_components/grimmory` to the `custom_components` directory in your Home Assistant configuration.
