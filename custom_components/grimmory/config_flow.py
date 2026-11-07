@@ -20,13 +20,14 @@ from homeassistant.config_entries import (
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_TOKEN, CONF_USERNAME
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.config_entry_oauth2_flow import AbstractOAuth2FlowHandler
 from homeassistant.helpers.selector import (
     SelectSelector,
     SelectSelectorConfig,
     SelectSelectorMode,
 )
 
-from .api import GrimmoryApiClient
+from .api import CannotConnect, GrimmoryApiClient
 from .const import (
     CONF_BOOKS,
     CONF_LIBRARY_ID,
@@ -34,6 +35,7 @@ from .const import (
     CONF_REFRESH_TOKEN,
     DOMAIN,
 )
+from .oidc import GrimmoryOAuth2Implementation
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -48,10 +50,7 @@ STEP_USER_DATA_SCHEMA = probatio.Schema(
 
 
 async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
-    """Validate the user input allows us to connect.
-
-    Data has the keys from STEP_USER_DATA_SCHEMA with values provided by the user.
-    """
+    """Validate whether the user input allows us to connect."""
 
     session = async_get_clientsession(hass)
 
@@ -117,21 +116,41 @@ async def _get_additional_settings_schema(
     )
 
 
-class GrimmoryConfigFlow(ConfigFlow, domain=DOMAIN):
+class GrimmoryConfigFlow(AbstractOAuth2FlowHandler, domain=DOMAIN):
     """Handle a config flow for grimmory."""
 
     VERSION = 2
+    DOMAIN = DOMAIN
 
     def __init__(self) -> None:
         """Initialize the config flow."""
         super().__init__()
         self._login_data: dict[str, Any] = {}
 
+    @property
+    def logger(self) -> logging.Logger:
+        """Return the logger."""
+        return _LOGGER
+
     @override
     @staticmethod
     def async_get_options_flow(config_entry: ConfigEntry) -> OptionsFlowWithReload:
         """Get the options flow."""
         return GrimmoryOptionsFlow()
+
+    @override
+    async def async_oauth_create_entry(self, data: dict[str, Any]) -> ConfigFlowResult:
+        """Continue with the Grimmory library selection."""
+
+        token = data["token"]
+
+        self._login_data = {
+            CONF_HOST: self._host,
+            CONF_TOKEN: token["access_token"],
+            CONF_REFRESH_TOKEN: token["refresh_token"],
+        }
+
+        return await self.async_step_library()
 
     @override
     async def async_step_user(
@@ -146,7 +165,89 @@ class GrimmoryConfigFlow(ConfigFlow, domain=DOMAIN):
             self._abort_if_unique_id_configured()
 
             try:
-                api_data = await validate_input(self.hass, user_input)
+                public_settings = await GrimmoryApiClient.get_public_settings(
+                    user_input[CONF_HOST]
+                )
+            except CannotConnect:
+                errors["base"] = "cannot_connect"
+            except Exception:
+                _LOGGER.exception("Unexpected exception")
+                errors["base"] = "unknown"
+            else:
+                self._host = user_input[CONF_HOST]
+                self._public_settings = public_settings
+
+                oidc_enabled = public_settings.get("oidcEnabled")
+                oidc_only = public_settings.get("oidcForceOnlyMode")
+
+                if oidc_enabled and oidc_only:
+                    _LOGGER.debug("Only oidc is enabled at %s", self._host)
+                    return await self.async_step_oidc()
+
+                if oidc_enabled:
+                    _LOGGER.debug("Normal auth and oidc is enabled at %s", self._host)
+                    return await self.async_step_auth_method()
+
+                _LOGGER.debug("Only nomral auth is enabled at %s", self._host)
+                return await self.async_step_credentials()
+
+        return self.async_show_form(
+            step_id="user",
+            data_schema=self.add_suggested_values_to_schema(
+                probatio.Schema(
+                    {
+                        probatio.Required(CONF_HOST): str,
+                    }
+                ),
+                user_input or {},
+            ),
+            errors=errors,
+        )
+
+    async def async_step_auth_method(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """If the server has OIDC and normal authorization enabled ask the user which method to use"""
+
+        if user_input is not None:
+            if user_input["auth_method"] == "oidc":
+                return await self.async_step_oidc()
+
+            return await self.async_step_credentials()
+
+        return self.async_show_form(
+            step_id="auth_method",
+            data_schema=probatio.Schema(
+                {
+                    probatio.Required("auth_method"): SelectSelector(
+                        SelectSelectorConfig(
+                            options=[
+                                {
+                                    "value": "credentials",
+                                    "label": "Username and password",
+                                },
+                                {"value": "oidc", "label": "OIDC"},
+                            ],
+                            mode=SelectSelectorMode.LIST,
+                        )
+                    )
+                }
+            ),
+        )
+
+    async def async_step_credentials(
+        self,
+        user_input: dict[str, Any] | None = None,
+    ) -> ConfigFlowResult:
+        """Let the user log in using a username and password"""
+
+        errors = {}
+
+        if user_input is not None:
+            data = {CONF_HOST: self._host, **user_input}
+
+            try:
+                api_data = await validate_input(self.hass, data)
             except CannotConnect:
                 errors["base"] = "cannot_connect"
             except InvalidAuth:
@@ -159,13 +260,35 @@ class GrimmoryConfigFlow(ConfigFlow, domain=DOMAIN):
                 return await self.async_step_library()
 
         return self.async_show_form(
-            step_id="user",
-            data_schema=self.add_suggested_values_to_schema(
-                STEP_USER_DATA_SCHEMA,
-                user_input or {},
+            step_id="credentials",
+            data_schema=probatio.Schema(
+                {
+                    probatio.Required(CONF_USERNAME): str,
+                    probatio.Required(CONF_PASSWORD): str,
+                }
             ),
             errors=errors,
         )
+
+    async def async_step_oidc(self) -> ConfigFlowResult:
+        """Start the OIDC authentication flow."""
+
+        oidc_settings = self._public_settings.get("oidcProviderDetails")
+
+        if not oidc_settings:
+            _LOGGER.error("OIDC provider details missing from Grimmory settings")
+            return self.async_abort(reason="oauth_error")
+
+        self.flow_impl = GrimmoryOAuth2Implementation(
+            hass=self.hass,
+            host=self._host,
+            oidc_settings=oidc_settings,
+        )
+
+        return await self.async_step_auth()
+
+    async def async_step_oidc_callback(self):
+        pass
 
     async def async_step_library(
         self, user_input: dict[str, Any] | None = None
@@ -444,10 +567,6 @@ class GrimmoryOptionsFlow(OptionsFlowWithReload):
             step_id="additional_settings",
             data_schema=data_schema,
         )
-
-
-class CannotConnect(Exception):
-    """Error to indicate we cannot connect."""
 
 
 class InvalidAuth(Exception):

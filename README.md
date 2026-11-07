@@ -28,6 +28,8 @@ Requires Home Assistant Core 2026.9 or newer. Grimmory uses child devices for tr
 
 After installing the integration, add Grimmory from **Settings → Devices & services → Add integration**. Enter the base URL of your Grimmory server (don't forget http:// or https://) and your Grimmory username and password. Then choose a specific library or All libraries, and select the source to use for book reading progress.
 
+Username/password is the standard authentication method; OIDC is experimental. To use OIDC, add Home Assistant's callback URL (`<Home Assistant URL>/oauth2-callback`) as an additional allowed redirect URI in Grimmory's existing OIDC provider. No additional changes should be required.
+
 To change the library or reading progress source later, open the Grimmory config entry, choose **Configure**, then select **Change additional settings**. You can also use **Reconfigure** from the config entry menu.
 
 ## Track an individual book
