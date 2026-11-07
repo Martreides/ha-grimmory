@@ -1,4 +1,6 @@
 {
   "homeassistant": "2026.9.0",
-  "name": "Grimmory"
+  "name": "Grimmory",
+  "zip_release": true,
+  "filename": "grimmory.zip"
 }
