@@ -11,6 +11,8 @@ Requires Home Assistant Core 2026.9 or newer. Grimmory uses child devices for tr
 | Entity | Description |
 | --- | --- |
 | Book count | Number of books in the selected library, or across all libraries. |
+| Read book count | Number of books marked as read in Grimmory. |
+| Reading book count | Number of books marked as currently being read in Grimmory. |
 | Bookdrop files pending review | Number of files in Grimmory's bookdrop queue awaiting review. |
 | Last read book | Title of the last read book. Authors, series, last-read time, and read progress are available as attributes. |
 | Kobo Sync Enabled | Whether Kobo sync is enabled in Grimmory. |
@@ -19,6 +21,8 @@ Requires Home Assistant Core 2026.9 or newer. Grimmory uses child devices for tr
 | Grimmory version | Update entity showing the installed and latest Grimmory versions. |
 | Book read status | A sensor for each tracked book, shown on a child device under Grimmory. |
 | Book read progress | A sensor for each tracked book showing progress from the selected source: Grimmory, KOReader, or Kobo. |
+| Book last read | Timestamp of when each tracked book was last read. |
+| Book cover | Image entity showing the cover of each tracked book. |
 
 ## Setup
 
@@ -29,6 +33,8 @@ To change the library or reading progress source later, open the Grimmory config
 ## Track an individual book
 
 Open the Grimmory configuration entry, choose **Configure**, then select **Add a book** and enter the book's ID. You can find the ID in the book's URL: for example, in `http://192.168.1.17:6060/book/169?tab=view`, the book ID is `169` (the number after `/book/`).
+
+Each tracked book appears as a child device with its read status, read progress, last-read time, and cover image.
 
 If you selected a specific library during setup, the book must belong to that library. With **All libraries** selected, books from any library can be added.
 
