@@ -19,8 +19,8 @@ jobs:
 
       - name: Create ZIP
         run: |
-          cd custom_components
-          zip -r ../grimmory.zip grimmory
+          cd custom_components/grimmory
+          zip -r "$GITHUB_WORKSPACE/grimmory.zip" .
 
       - name: Upload release asset
         uses: softprops/action-gh-release@v2
