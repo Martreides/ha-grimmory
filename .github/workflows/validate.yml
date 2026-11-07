@@ -1,4 +1,4 @@
-name: One-off validation
+name: HACS and hass validation
 
 on:
   pull_request:
