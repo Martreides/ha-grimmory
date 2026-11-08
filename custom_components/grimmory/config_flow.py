@@ -12,7 +12,6 @@ import aiohttp
 import probatio
 from homeassistant.config_entries import (
     ConfigEntry,
-    ConfigFlow,
     ConfigFlowResult,
     HomeAssistant,
     OptionsFlowWithReload,
