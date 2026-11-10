@@ -263,18 +263,19 @@ class GrimmoryApiClient:
 
         params = {"page": 0, "size": 1}
         if library_id is not None:
-            params["libraryId"] = library_id
+            params["facet"] = f"library:{library_id}"
 
         books = await self._get(
-            f"{self.host}/api/v1/app/books",
+            f"{self.host}/api/v1/books/page",
             params=params,
             headers={
                 "Authorization": f"Bearer {self.token}",
             },
         )
 
-        book_count = books["totalElements"]
+        book_count = books.get("page")["totalElements"]
         _LOGGER.debug("Retrieved %d books from Grimmory API", book_count)
+
         return book_count
 
     async def get_grimmory_version(self) -> dict[str, Any]:
@@ -320,17 +321,16 @@ class GrimmoryApiClient:
             raise RuntimeError("Client is not available")
 
         params = {
-            "page": 1,
+            "page": 0,
             "size": 1,
-            "sort": "lastReadTime",
-            "dir": "desc",
+            "sort": "-lastReadTime",
         }
 
         if library_id is not None:
-            params["libraryId"] = library_id
+            params["facet"] = f"library:{library_id}"
 
         last_read = await self._get(
-            f"{self.host}/api/v1/app/books",
+            f"{self.host}/api/v1/books/page",
             params=params,
             headers={
                 "Authorization": f"Bearer {self.token}",

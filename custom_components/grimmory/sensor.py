@@ -214,7 +214,9 @@ class GrimmoryBookdropPendingReviewSensor(SensorEntity):
     async def async_update(self) -> None:
         """Fetch the number of bookdrop files pending review."""
         try:
-            files = await self._api_client.get_bookdrop_files_by_status("PENDING_REVIEW")
+            files = await self._api_client.get_bookdrop_files_by_status(
+                "PENDING_REVIEW"
+            )
         except (aiohttp.ClientError, TimeoutError, ConfigEntryAuthFailed):
             self._attr_available = False
             return
@@ -259,12 +261,12 @@ class GrimmoryLastReadSensor(SensorEntity):
             self._attr_extra_state_attributes = {}
             return
 
-        self._attr_native_value = book.get("title")
+        metadata = book.get("metadata")
+        self._attr_native_value = metadata.get("title")
         self._attr_extra_state_attributes = {
-            "authors": book.get("authors"),
+            "authors": metadata.get("authors"),
             "last_read": book.get("lastReadTime"),
-            "read_progress": book.get("readProgress"),
-            "series": book.get("seriesName"),
+            "series": metadata.get("seriesName"),
         }
 
 
