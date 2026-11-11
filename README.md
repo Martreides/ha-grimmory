@@ -61,7 +61,7 @@ If the issue persists, [open an issue](https://github.com/Martreides/ha-grimmory
 
 ## Note
 
-This integration is actively developed and may be unstable. Features and behaviour may change and are currently mainly based on what I use myself.
+This integration has reached its first stable release. Features may continue to evolve; report issues through the [issue tracker](https://github.com/Martreides/ha-grimmory/issues).
 
 ## License
 
