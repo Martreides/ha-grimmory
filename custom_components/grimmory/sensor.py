@@ -44,13 +44,17 @@ async def async_setup_entry(
     coordinator = entry.runtime_data.coordinator
 
     library_id = entry.data.get(CONF_LIBRARY_ID)
+    progress_source = entry.data.get(CONF_PROGRESS_SOURCE)
+
     async_add_entities(
         [
             GrimmoryBookCountSensor(api_client, entry.entry_id, library_id),
             GrimmoryBookCountReadSensor(coordinator, entry.entry_id),
             GrimmoryBookCountReadingSensor(coordinator, entry.entry_id),
             GrimmoryBookdropPendingReviewSensor(api_client, entry.entry_id),
-            GrimmoryLastReadSensor(api_client, entry.entry_id, library_id),
+            GrimmoryLastReadSensor(
+                api_client, entry.entry_id, library_id, progress_source
+            ),
         ],
         update_before_add=True,
     )
@@ -64,7 +68,6 @@ async def async_setup_entry(
     if parent_device is None:
         raise RuntimeError("Grimmory parent device not found")
 
-    progress_source = entry.data.get(CONF_PROGRESS_SOURCE)
     for book in entry.options.get(CONF_BOOKS, []):
         async_add_entities(
             [
@@ -236,10 +239,12 @@ class GrimmoryLastReadSensor(SensorEntity):
         api_client: GrimmoryApiClient,
         entry_id: str,
         library_id: int | None,
+        progress_source: str,
     ) -> None:
         """Initialize the sensor."""
         self._api_client = api_client
         self._library_id = library_id
+        self._progress_source = progress_source
         self._attr_unique_id = f"{entry_id}_last_read_book"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, entry_id)},
@@ -263,9 +268,18 @@ class GrimmoryLastReadSensor(SensorEntity):
 
         metadata = book.get("metadata")
         self._attr_native_value = metadata.get("title")
+
+        if self._progress_source == "koreader":
+            progress = book.get("koreaderProgress")
+        elif self._progress_source == "kobo":
+            progress = book.get("koboProgress")
+        else:
+            progress = book.get("epubProgress")
+
         self._attr_extra_state_attributes = {
             "authors": metadata.get("authors"),
             "last_read": book.get("lastReadTime"),
+            "read_progress": progress.get("percentage") if progress else None,
             "series": metadata.get("seriesName"),
         }
 
